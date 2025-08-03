@@ -1,0 +1,61 @@
+
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Environment variables
+.env*.local
+.env.production
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Supabase 설정 파일들 (개발용이므로 제외)
+*-schema.sql
+*-setup.sql
+*-fix.sql
+*-policy.sql
+*-rls.sql
+disable-all-rls.sql
+quick-storage-fix.sql
+
+# 문서 파일들 (배포와 무관한 것들)
+clerk-supabase-setup.md
+deployment-guide.md
+storage-policy-guide.md
+*-setup-guide.md
+*-storage-setup.md
+SUPABASE-AUTH-SETUP.md
