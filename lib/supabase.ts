@@ -37,9 +37,8 @@ export const supabase = createClient(
 // Auth 헬퍼 함수들
 export const auth = {
   // 현재 사용자 가져오기
-  async getUser(): Promise<User | null> {
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
+  async getUser() {
+    return await supabase.auth.getUser()
   },
 
   // 로그인
@@ -92,8 +91,7 @@ export const auth = {
 
   // 세션 체크
   async getSession() {
-    const { data: { session } } = await supabase.auth.getSession()
-    return session
+    return await supabase.auth.getSession()
   },
 
   // 인증 상태 변경 리스너

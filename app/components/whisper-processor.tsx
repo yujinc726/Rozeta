@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,26 +11,25 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, Upload, Wand2, Download, FileAudio } from "lucide-react"
+import { ArrowLeft, Upload, Wand2, Download, FileAudio, X } from "lucide-react"
 import { toast } from "sonner"
+import { recordings } from "@/lib/database"
 
 interface WhisperProcessorProps {
   recordingId?: string
   audioUrl?: string
-  onBack: () => void
+  onBack?: () => void
 }
 
 export default function WhisperProcessor({ recordingId, audioUrl, onBack }: WhisperProcessorProps) {
+  const router = useRouter()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [modelSize, setModelSize] = useState("turbo")
   const [language, setLanguage] = useState("Auto")
   const [stableTs, setStableTs] = useState(true)
   const [removeRepeated, setRemoveRepeated] = useState(true)
   const [merge, setMerge] = useState(true)
-  const [prompt, setPrompt] = useState(`예시)
-This is a university lecture on Natural Language Processing (NLP, 자연어처리).
-Language: primarily Korean with English technical terms.
-Key terms: Recurrent Neural Network (RNN), Long Short-Term Memory (LSTM), Transformer, attention mechanism, word embeddings.`)
+  const [prompt, setPrompt] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [rawSubtitles, setRawSubtitles] = useState("")
@@ -85,11 +85,10 @@ Key terms: Recurrent Neural Network (RNN), Long Short-Term Memory (LSTM), Transf
       formData.append('prompt', prompt)
 
       setProgress(30)
-      toast.info('Whisper AI로 음성을 처리하는 중...')
+      toast.info('AI가 음성을 텍스트로 변환하는 중...')
 
-      // Python Whisper 서버로 요청
-      const whisperServerUrl = process.env.NEXT_PUBLIC_WHISPER_SERVER_URL || 'http://localhost:8000'
-      const response = await fetch(`${whisperServerUrl}/api/whisper/process`, {
+      // Python Whisper 서버로 요청 (로컬 서버 포트 8000)
+      const response = await fetch('http://localhost:8000/api/whisper/process', {
         method: 'POST',
         body: formData
       })
@@ -107,8 +106,23 @@ Key terms: Recurrent Neural Network (RNN), Long Short-Term Memory (LSTM), Transf
       setRawSubtitlesUrl(result.rawSubtitlesUrl)
       setArrangedSubtitlesUrl(result.arrangedSubtitlesUrl)
       
+      setProgress(90)
+      
+      // 데이터베이스에 transcript 저장
+      if (recordingId && result.arrangedSubtitles) {
+        try {
+          await recordings.update(recordingId, {
+            transcript: result.arrangedSubtitles
+          })
+          console.log('Transcript saved to database')
+        } catch (dbError) {
+          console.error('Failed to save transcript:', dbError)
+          toast.error('텍스트 저장 중 오류가 발생했습니다.')
+        }
+      }
+      
       setProgress(100)
-      toast.success('자막 생성이 완료되었습니다!')
+      toast.success('음성 텍스트 변환이 완료되었습니다!')
       
     } catch (error) {
       console.error('처리 오류:', error)
@@ -119,210 +133,210 @@ Key terms: Recurrent Neural Network (RNN), Long Short-Term Memory (LSTM), Transf
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-white">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold">Whisper AI 자막 생성</h1>
-            <p className="text-sm text-gray-600">음성 파일을 자막으로 변환합니다</p>
-          </div>
+      <div className="border-b px-6 py-4">
+        <div>
+          <h2 className="text-xl font-bold">AI 텍스트 변환</h2>
+          <p className="text-sm text-gray-600 mt-1">녹음된 강의 음성을 텍스트로 변환합니다</p>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Settings */}
-          <div className="space-y-4">
-            {/* File Upload */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileAudio className="w-5 h-5 text-purple-600" />
-                  오디오 파일
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Input
-                    type="file"
-                    accept="audio/*,video/*"
-                    onChange={handleFileChange}
-                    className="cursor-pointer"
-                  />
-                  {selectedFile && (
-                    <Badge variant="secondary" className="gap-1">
-                      {selectedFile.name}
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+      <div className="p-6">
+        <div className="space-y-6">
+          {/* Status Card */}
+          <Card className="border-purple-200 bg-purple-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileAudio className="w-5 h-5 text-purple-600" />
+                음성 파일 준비 완료
+              </CardTitle>
+              <CardDescription>
+                {selectedFile ? `${selectedFile.name} - ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB` : '녹음 파일이 자동으로 로드되었습니다'}
+              </CardDescription>
+            </CardHeader>
+          </Card>
 
-            {/* Model Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle>모델 설정</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Whisper 모델</Label>
-                    <Select value={modelSize} onValueChange={setModelSize}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="tiny">tiny</SelectItem>
-                        <SelectItem value="base">base</SelectItem>
-                        <SelectItem value="small">small</SelectItem>
-                        <SelectItem value="medium">medium</SelectItem>
-                        <SelectItem value="large">large</SelectItem>
-                        <SelectItem value="large-v2">large-v2</SelectItem>
-                        <SelectItem value="large-v3">large-v3</SelectItem>
-                        <SelectItem value="turbo">turbo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>언어</Label>
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Auto">자동 감지</SelectItem>
-                        <SelectItem value="ko">한국어</SelectItem>
-                        <SelectItem value="en">영어</SelectItem>
-                        <SelectItem value="ja">일본어</SelectItem>
-                        <SelectItem value="zh">중국어</SelectItem>
-                        <SelectItem value="es">스페인어</SelectItem>
-                        <SelectItem value="fr">프랑스어</SelectItem>
-                        <SelectItem value="de">독일어</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="stable-ts"
-                    checked={stableTs}
-                    onCheckedChange={(checked) => setStableTs(checked as boolean)}
-                  />
-                  <Label htmlFor="stable-ts">stable-ts 사용</Label>
-                </div>
-
+          {/* Model Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>변환 설정</CardTitle>
+              <CardDescription>음성 인식을 위한 상세 설정을 구성합니다</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>자막 정리 옵션</Label>
-                  <div className="space-y-2 pl-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="remove-repeated"
-                        checked={removeRepeated}
-                        onCheckedChange={(checked) => setRemoveRepeated(checked as boolean)}
-                      />
-                      <Label htmlFor="remove-repeated">반복 단어 제거</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="merge"
-                        checked={merge}
-                        onCheckedChange={(checked) => setMerge(checked as boolean)}
-                      />
-                      <Label htmlFor="merge">완전한 문장으로 병합</Label>
+                  <Label>AI 모델 크기</Label>
+                  <Select value={modelSize} onValueChange={setModelSize}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="turbo">Turbo (빠르고 정확)</SelectItem>
+                      <SelectItem value="large-v3">Large-v3 (최고 정확도)</SelectItem>
+                      <SelectItem value="medium">Medium (균형)</SelectItem>
+                      <SelectItem value="small">Small (빠름)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">강의 녹음에는 Turbo 모델을 권장합니다</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>강의 언어</Label>
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Auto">자동 감지</SelectItem>
+                      <SelectItem value="ko">한국어</SelectItem>
+                      <SelectItem value="en">영어</SelectItem>
+                      <SelectItem value="ja">일본어</SelectItem>
+                      <SelectItem value="zh">중국어</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">주 언어를 선택하면 더 정확합니다</p>
+                </div>
+              </div>
+
+              {/* 텍스트 정리 옵션 - 임시 비활성화
+              <div className="border-t pt-6">
+                <Label className="text-base font-semibold mb-4 block">텍스트 정리 옵션</Label>
+                <div className="space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <Checkbox
+                      id="stable-ts"
+                      checked={stableTs}
+                      onCheckedChange={(checked) => setStableTs(checked as boolean)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <Label htmlFor="stable-ts" className="font-normal cursor-pointer">
+                        타임스탬프 안정화
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-1">더 정확한 시간 동기화를 위해 사용합니다</p>
                     </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>프롬프트 (선택사항)</Label>
-                  <Textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    rows={5}
-                    placeholder="강의 내용에 대한 힌트를 입력하세요..."
-                  />
-                </div>
-
-                <Button
-                  onClick={processAudio}
-                  disabled={!selectedFile || isProcessing}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  자막 생성
-                </Button>
-
-                {isProcessing && (
-                  <div className="space-y-2">
-                    <Progress value={progress} className="h-2" />
-                    <p className="text-sm text-center text-gray-600">처리 중... {progress}%</p>
+                  <div className="flex items-start space-x-3">
+                    <Checkbox
+                      id="remove-repeated"
+                      checked={removeRepeated}
+                      onCheckedChange={(checked) => setRemoveRepeated(checked as boolean)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <Label htmlFor="remove-repeated" className="font-normal cursor-pointer">
+                        반복 단어 제거
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-1">"어... 그... 음..." 같은 불필요한 반복을 제거합니다</p>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  <div className="flex items-start space-x-3">
+                    <Checkbox
+                      id="merge"
+                      checked={merge}
+                      onCheckedChange={(checked) => setMerge(checked as boolean)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <Label htmlFor="merge" className="font-normal cursor-pointer">
+                        문장 자동 병합
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-1">짧게 끊긴 문장을 자연스럽게 연결합니다</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              */}
 
-          {/* Right Column - Results */}
-          <div className="space-y-4">
-            {/* Raw Subtitles */}
-            <Card>
-              <CardHeader>
-                <CardTitle>원본 자막</CardTitle>
-                <CardDescription>Whisper가 생성한 원본 자막입니다</CardDescription>
-              </CardHeader>
-              <CardContent>
+              <div className="pt-6">
+                <Label>강의 내용 힌트 (선택사항)</Label>
                 <Textarea
-                  value={rawSubtitles}
-                  onChange={(e) => setRawSubtitles(e.target.value)}
-                  rows={10}
-                  placeholder="자막이 여기에 표시됩니다..."
-                  className="font-mono text-sm"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  rows={4}
+                  placeholder="예시) 컴퓨터 공학 강의, 자료구조, 알고리즘, Binary Search Tree, Hash Table 등의 용어가 나옵니다..."
+                  className="mt-2"
                 />
-                {rawSubtitlesUrl && (
-                  <Button
-                    onClick={() => window.open(rawSubtitlesUrl, '_blank')}
-                    variant="outline"
-                    className="w-full mt-4"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    원본 자막 다운로드 (SRT)
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                <p className="text-xs text-gray-500 mt-2">전문 용어나 고유명사를 입력하면 인식률이 향상됩니다</p>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Arranged Subtitles */}
-            <Card>
-              <CardHeader>
-                <CardTitle>정리된 자막</CardTitle>
-                <CardDescription>문장 단위로 정리된 자막입니다</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={arrangedSubtitles}
-                  onChange={(e) => setArrangedSubtitles(e.target.value)}
-                  rows={10}
-                  placeholder="정리된 자막이 여기에 표시됩니다..."
-                  className="font-mono text-sm"
-                />
-                {arrangedSubtitlesUrl && (
-                  <Button
-                    onClick={() => window.open(arrangedSubtitlesUrl, '_blank')}
-                    variant="outline"
-                    className="w-full mt-4"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    정리된 자막 다운로드 (SRT)
-                  </Button>
+          {/* Processing Button and Status */}
+          <Card>
+            <CardContent className="pt-6">
+              <Button
+                onClick={processAudio}
+                disabled={!selectedFile || isProcessing}
+                className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium"
+                size="lg"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    텍스트 변환 중...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-5 h-5 mr-2" />
+                    텍스트 변환 시작
+                  </>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </Button>
+
+              {isProcessing && (
+                <div className="mt-6 space-y-3">
+                  <Progress value={progress} className="h-2" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-700">
+                      {progress < 30 ? '파일 준비 중...' :
+                       progress < 70 ? 'AI가 음성을 분석하고 있습니다...' :
+                       '텍스트 변환을 마무리하고 있습니다...'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      강의 길이에 따라 수 분이 소요될 수 있습니다
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {!isProcessing && rawSubtitles && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+                      <svg className="w-3 h-3 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                        <path d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-green-900">텍스트 변환 완료!</p>
+                      <p className="text-sm text-green-700 mt-1">
+                        음성이 성공적으로 텍스트로 변환되었습니다.
+                      </p>
+                      <Button
+                        onClick={() => {
+                          if (onBack) {
+                            onBack()
+                          } else {
+                            router.back()
+                          }
+                        }}
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 text-green-700 border-green-300 hover:bg-green-100"
+                      >
+                        창 닫기
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
   )
-} 
+}

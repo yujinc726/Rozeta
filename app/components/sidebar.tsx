@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, FileAudio, Folder, Settings, Search, ArrowLeft } from "lucide-react"
+import { Plus, FileAudio, Folder, Settings, Search, ArrowLeft, Sparkles } from "lucide-react"
 import type { Subject as DbSubject } from "@/lib/supabase"
 
 interface Subject extends DbSubject {
@@ -53,9 +53,18 @@ export default function Sidebar({
             </Button>
           )}
           <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-            <FileAudio className="w-4 h-4 text-white" />
+            <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Rozeta</h1>
+          <h1 className="text-2xl font-bold">
+            <span style={{ 
+              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Rozeta
+            </span>
+          </h1>
         </div>
 
         <div className="relative">

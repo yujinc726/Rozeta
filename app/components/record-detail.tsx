@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,12 +18,13 @@ import WhisperProcessor from "./whisper-processor"
 
 interface RecordDetailProps {
   recording: DbRecording
-  onBack: () => void
-  onOpenAIExplanation: () => void
+  onOpenWhisper?: () => void
+  onOpenAIExplanation?: () => void
   isSidebarCollapsed?: boolean
 }
 
-export default function RecordDetail({ recording, onBack, onOpenAIExplanation, isSidebarCollapsed = false }: RecordDetailProps) {
+export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplanation, isSidebarCollapsed = false }: RecordDetailProps) {
+  const router = useRouter()
   const [recordEntriesList, setRecordEntriesList] = useState<RecordEntry[]>([])
   const [editingEntry, setEditingEntry] = useState<RecordEntry | null>(null)
   const [editedData, setEditedData] = useState<RecordEntry | null>(null)
@@ -431,7 +433,7 @@ export default function RecordDetail({ recording, onBack, onOpenAIExplanation, i
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button 
-                onClick={onBack} 
+                onClick={() => router.push(`/subjects/${recording.subject_id}`)} 
                 variant="ghost" 
                 size="sm"
               >
@@ -962,7 +964,7 @@ export default function RecordDetail({ recording, onBack, onOpenAIExplanation, i
             onBack={() => {
               setShowWhisperDialog(false)
               // 변환 완료 후 recording 데이터 새로고침이 필요하면 여기서 처리
-              window.location.reload() // 임시로 페이지 새로고침
+              router.refresh() // 페이지 데이터 새로고침
             }}
           />
         </DialogContent>

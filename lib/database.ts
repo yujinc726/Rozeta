@@ -18,19 +18,30 @@ export const subjects = {
     return data || []
   },
 
-  // 새 과목 생성
-  async create(name: string, description?: string): Promise<Subject> {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('로그인이 필요합니다.')
+  // 사용자의 모든 과목 조회 (user_id를 매개변수로 받는 버전)
+  async list(userId: string): Promise<Subject[]> {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
     
-    console.log('Creating subject in database:', { name, userId: user.id, description })
+    if (error) throw error
+    return data || []
+  },
+
+  // 새 과목 생성
+  async create(params: { name: string; user_id: string; description?: string }): Promise<Subject> {
+    const { name, user_id, description } = params
+    
+    console.log('Creating subject in database:', { name, userId: user_id, description })
     
     const { data, error } = await supabase
       .from('subjects')
       .insert({
         name,
         description,
-        user_id: user.id
+        user_id
       })
       .select()
       .single()
@@ -116,6 +127,48 @@ export const recordings = {
     
     if (error) throw error
     return data || []
+  },
+
+  // 특정 과목의 모든 녹음 조회 (subject_id를 매개변수로 받는 버전)
+  async list(subjectId: string): Promise<Recording[]> {
+    const { data, error } = await supabase
+      .from('recordings')
+      .select('*')
+      .eq('subject_id', subjectId)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Failed to get recordings by subject:', error)
+      throw error
+    }
+    return data || []
+  },
+
+  // 사용자의 모든 녹음 조회 (user_id를 매개변수로 받는 버전)
+  async listAll(userId: string): Promise<Recording[]> {
+    const { data, error } = await supabase
+      .from('recordings')
+      .select('*, subjects(name)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  // 특정 녹음 조회
+  async get(recordingId: string): Promise<Recording | null> {
+    const { data, error } = await supabase
+      .from('recordings')
+      .select('*')
+      .eq('id', recordingId)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') return null
+      throw error
+    }
+    return data
   },
 
   // 새 녹음 세션 생성

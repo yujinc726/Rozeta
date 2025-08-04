@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
@@ -29,15 +30,15 @@ interface SlideSync {
 interface RecordPageProps {
   subjectName: string
   subjectId: string
-  onBack: () => void
   isSidebarCollapsed?: boolean
 }
 
-export default function RecordPage({ subjectName, subjectId, onBack, isSidebarCollapsed = false }: RecordPageProps) {
+export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed = false }: RecordPageProps) {
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   
   useEffect(() => {
-    auth.getUser().then(setUser)
+    auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
   const [recordingTitle, setRecordingTitle] = useState(`${subjectName} ${new Date().toLocaleDateString('ko-KR')}`)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -309,7 +310,7 @@ export default function RecordPage({ subjectName, subjectId, onBack, isSidebarCo
           
           // 6. 메인 화면으로 돌아가기
           setTimeout(() => {
-            onBack()
+            router.push(`/subjects/${subjectId}`)
           }, 1500)
           
         } catch (error) {

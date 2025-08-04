@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -17,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { Plus, FileAudio, Folder, Settings, ArrowLeft, ChevronLeft, ChevronRight, Menu, MoreHorizontal, Edit, Trash2, Home, LogOut, User } from "lucide-react"
+import { Plus, FileAudio, Folder, Settings, ArrowLeft, ChevronLeft, ChevronRight, Menu, MoreHorizontal, Edit, Trash2, Home, LogOut, User, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/supabase"
 
@@ -57,6 +58,7 @@ export default function SharedSidebar({
   isCollapsed = false,
   onToggleCollapse
 }: SharedSidebarProps) {
+  const router = useRouter()
   const [newSubjectName, setNewSubjectName] = useState("")
   const [isAddingSubject, setIsAddingSubject] = useState(false)
   const [editingSubject, setEditingSubject] = useState<{ id: string; name: string } | null>(null)
@@ -64,7 +66,7 @@ export default function SharedSidebar({
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    auth.getUser().then(setUser)
+    auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
 
   const handleAddSubject = () => {
@@ -105,10 +107,19 @@ export default function SharedSidebar({
           title="홈으로 이동"
         >
           <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-            <FileAudio className="w-4 h-4 text-white" />
+            <Sparkles className="w-4 h-4 text-white" />
           </div>
           {!isCollapsed && (
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Rozeta</h1>
+            <h1 className="text-2xl font-bold">
+              <span style={{ 
+                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                Rozeta
+              </span>
+            </h1>
           )}
         </div>
       </div>
@@ -327,7 +338,7 @@ export default function SharedSidebar({
                 className="text-red-600"
                 onClick={async () => {
                   await auth.signOut()
-                  window.location.href = '/'
+                  router.push('/')
                 }}
               >
                 <LogOut className="w-4 h-4 mr-2" />

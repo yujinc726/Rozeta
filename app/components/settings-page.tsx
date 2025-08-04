@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -16,10 +17,10 @@ import { auth } from "@/lib/supabase"
 import { settingsDb } from "@/lib/database"
 
 interface SettingsPageProps {
-  onBack: () => void
 }
 
-export default function SettingsPage({ onBack }: SettingsPageProps) {
+export default function SettingsPage({}: SettingsPageProps) {
+  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -225,7 +226,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={onBack}
+          onClick={() => router.back()}
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
