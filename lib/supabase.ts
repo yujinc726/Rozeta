@@ -139,6 +139,7 @@ export interface Recording {
   audio_url?: string
   pdf_url?: string
   transcript?: string
+  subtitles?: string
   summary?: string
   key_terms?: any
   exam_questions?: any

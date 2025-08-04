@@ -1,220 +1,142 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Replicate from 'replicate';
+import { createSrtContent, arrangeSubtitles, groupWordsIntoPhases } from '@/lib/transcript-utils';
 
-// Replicate client 초기화를 함수 내부로 이동
+const RUNPOD_ENDPOINT_ID = process.env.RUNPOD_ENDPOINT_ID;
+const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY;
+
+// Helper to introduce delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function POST(request: NextRequest) {
-  try {
-    // 환경 변수 확인
-    if (!process.env.REPLICATE_API_TOKEN) {
-      console.error('REPLICATE_API_TOKEN is not set');
+  if (!RUNPOD_ENDPOINT_ID || !RUNPOD_API_KEY) {
+    console.error('RunPod environment variables are not set');
       return NextResponse.json(
-        { error: 'Replicate API 토큰이 설정되지 않았습니다. 환경 변수를 확인해주세요.' },
+      { error: 'RunPod API 키 또는 엔드포인트 ID가 설정되지 않았습니다.' },
         { status: 500 }
       );
     }
 
+  try {
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
-    const modelSize = formData.get('modelSize') as string || 'turbo';
+    const model = formData.get('modelSize') as string || 'large-v3'; // faster-whisper model
     const language = formData.get('language') as string || 'Auto';
     const prompt = formData.get('prompt') as string || '';
 
-    console.log('Processing audio:', {
-      fileName: audioFile?.name,
-      fileSize: audioFile?.size,
-      fileType: audioFile?.type,
-      modelSize,
-      language
-    });
-
     if (!audioFile) {
-      return NextResponse.json(
-        { error: '오디오 파일이 없습니다.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: '오디오 파일이 없습니다.' }, { status: 400 });
     }
 
-    // 파일을 ArrayBuffer로 변환
     const arrayBuffer = await audioFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const base64Audio = buffer.toString('base64');
-    const dataUri = `data:${audioFile.type};base64,${base64Audio}`;
-
-    // 파일 크기 체크 (Replicate 제한사항)
-    const fileSizeMB = audioFile.size / (1024 * 1024);
-    console.log(`Audio file size: ${fileSizeMB.toFixed(2)} MB`);
+    const audio_base64 = buffer.toString('base64');
     
-    if (fileSizeMB > 50) {
-      return NextResponse.json(
-        { error: '오디오 파일이 너무 큽니다. 50MB 이하의 파일을 사용해주세요.' },
-        { status: 400 }
-      );
-    }
+    console.log(`Submitting job to RunPod endpoint: ${RUNPOD_ENDPOINT_ID}`);
 
-    // Replicate client 초기화
-    const replicate = new Replicate({
-      auth: process.env.REPLICATE_API_TOKEN!,
+    // Step 1: Submit the job
+    const runResponse = await fetch(`https://api.runpod.ai/v2/${RUNPOD_ENDPOINT_ID}/run`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RUNPOD_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: {
+          audio_base64,
+          model: "large-v3", // Specify the model size
+          language: language === 'Auto' ? undefined : language,
+          word_timestamps: true,
+          initial_prompt: prompt || undefined,
+        },
+      }),
     });
 
-    console.log('Calling Replicate API...');
-    
-    // Replicate 모델 실행
-    const output = await replicate.run(
-      "vaibhavs10/incredibly-fast-whisper:3ab86df6c8f54c11309d4d1f930ac292bad43ace52d10c80d87eb258b3c9f79c",
-      {
-        input: {
-          audio: dataUri,
-          task: "transcribe",
-          language: language === "Auto" ? "None" : language.toLowerCase(),
-          timestamp: "chunk",
-          batch_size: 24,
-          chunk_length: 30,
-        }
+    if (!runResponse.ok) {
+      const errorBody = await runResponse.text();
+      console.error('RunPod API Error (run):', errorBody);
+      throw new Error(`RunPod 작업 제출 실패: ${runResponse.statusText} - ${errorBody}`);
+    }
+
+    const runResult = await runResponse.json();
+    const jobId = runResult.id;
+    console.log(`Job submitted successfully. Job ID: ${jobId}`);
+
+    // Step 2: Poll for the result
+    let jobStatus;
+    let jobOutput;
+    const maxRetries = 100; // ~5 minutes timeout
+    let retries = 0;
+
+    do {
+      await delay(3000); // 3-second delay between polls
+      const statusResponse = await fetch(`https://api.runpod.ai/v2/${RUNPOD_ENDPOINT_ID}/status/${jobId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${RUNPOD_API_KEY}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorBody = await statusResponse.text();
+        console.error('RunPod API Error (status):', errorBody);
+        throw new Error(`RunPod 상태 확인 실패: ${statusResponse.statusText} - ${errorBody}`);
       }
-    );
+      
+      const statusResult = await statusResponse.json();
+      jobStatus = statusResult.status;
+      jobOutput = statusResult.output;
+      
+      console.log(`Polling job ${jobId}, status: ${jobStatus}`);
+      retries++;
+      
+      if (jobStatus === 'FAILED' || statusResult.error) {
+        throw new Error(`RunPod 작업 실패: ${statusResult.error || '알 수 없는 오류'}`);
+      }
+      
+    } while (jobStatus !== 'COMPLETED' && retries < maxRetries);
 
-    console.log('Replicate API response received:', output ? 'Success' : 'Empty response');
+    if (jobStatus !== 'COMPLETED') {
+      throw new Error('RunPod 작업 시간 초과');
+    }
 
-    // 결과 처리
-    const result = output as any;
+    console.log(`RunPod Job ${jobId} COMPLETED.`);
     
-    // 원본 텍스트 추출
-    const rawText = result.text || '';
+    const result = jobOutput;
     
-    // 세그먼트 처리
-    const segments = result.chunks || [];
+    // The official worker returns 'segments' with word timestamps inside
+    const segments = result.segments || [];
+    const rawText = segments.map((s: any) => s.text).join(' ').trim();
     
-    // SRT 형식으로 변환
-    const rawSubtitles = createSrtContent(segments, false);
-    const arrangedSubtitles = arrangeSubtitles(rawSubtitles);
+    // Reformat segments to match the expected structure for createSrtContent
+    const wordSegments = (result.word_timestamps || []).map((word: any) => ({
+        ...word,
+        word: word.word.trim()
+    }));
+    const isWordLevel = wordSegments.length > 0;
+    
+    const rawSubtitles = createSrtContent(wordSegments.length > 0 ? wordSegments : segments, isWordLevel);
+    
+    // 단어 단위 자막을 적절한 구문 단위로 그룹화
+    const phrasedSubtitles = isWordLevel ? groupWordsIntoPhases(rawSubtitles, 12) : arrangeSubtitles(rawSubtitles);
 
     return NextResponse.json({
       success: true,
-      rawSubtitles,
-      arrangedSubtitles,
+      rawSubtitles,  // 단어 단위 자막 (transcript용)
+      arrangedSubtitles: phrasedSubtitles, // 구문 단위 자막 (subtitles용)
       transcription: rawText,
-      segments: segments
+      segments: wordSegments,
     });
 
   } catch (error: any) {
-    console.error('Transcription error:', error);
-    console.error('Error details:', {
-      message: error?.message,
-      status: error?.status,
-      response: error?.response,
-      stack: error?.stack
-    });
-    
-    // 더 구체적인 에러 메시지 반환
-    let errorMessage = '음성 변환 중 오류가 발생했습니다.';
-    
-    if (error?.message?.includes('API token')) {
-      errorMessage = 'Replicate API 토큰이 유효하지 않습니다.';
-    } else if (error?.message?.includes('rate limit')) {
-      errorMessage = 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
-    } else if (error?.message?.includes('insufficient credit')) {
-      errorMessage = 'Replicate 크레딧이 부족합니다.';
-    } else if (error?.message) {
-      errorMessage = `오류: ${error.message}`;
-    }
-    
+    console.error('=== TRANSCRIPTION ERROR DETAILS ===');
+    console.error('Error message:', error?.message);
     return NextResponse.json(
-      { error: errorMessage },
+        { error: `RunPod 처리 중 오류 발생: ${error.message}` }, 
       { status: 500 }
     );
   }
 }
 
-// SRT 형식 생성 함수
-function createSrtContent(chunks: any[], wordLevel: boolean = false): string {
-  let srtLines: string[] = [];
-  let index = 1;
-
-  chunks.forEach((chunk: any) => {
-    const startTime = formatTimestamp(chunk.timestamp[0]);
-    const endTime = formatTimestamp(chunk.timestamp[1]);
-    const text = chunk.text.trim();
-    
-    if (text) {
-      srtLines.push(`${index}`);
-      srtLines.push(`${startTime} --> ${endTime}`);
-      srtLines.push(text);
-      srtLines.push('');
-      index++;
-    }
-  });
-
-  return srtLines.join('\n');
-}
-
-// 타임스탬프 포맷 함수
-function formatTimestamp(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const millis = Math.floor((seconds % 1) * 1000);
-  
-  return `${pad(hours)}:${pad(minutes)}:${pad(secs)},${pad(millis, 3)}`;
-}
-
-function pad(num: number, size: number = 2): string {
-  return num.toString().padStart(size, '0');
-}
-
-// 자막 정리 함수
-function arrangeSubtitles(srtContent: string): string {
-  const blocks = srtContent.trim().split('\n\n');
-  const arrangedBlocks: string[] = [];
-  
-  let currentSentence: string[] = [];
-  let currentStartTime: string | null = null;
-  let currentEndTime: string = '';
-  let index = 1;
-
-  blocks.forEach(block => {
-    const lines = block.split('\n');
-    if (lines.length >= 3) {
-      const timeInfo = lines[1];
-      const text = lines.slice(2).join(' ');
-      
-      const [start, end] = timeInfo.split(' --> ');
-      
-      if (!currentStartTime) {
-        currentStartTime = start;
-      }
-      currentEndTime = end;
-      
-      currentSentence.push(text);
-      
-      // 문장 종료 조건
-      if (text.match(/[.!?。！？]$/) || text.endsWith('다.') || text.endsWith('요.') || text.endsWith('까?')) {
-        const sentenceText = currentSentence.join(' ');
-        arrangedBlocks.push(`${index}`);
-        arrangedBlocks.push(`${currentStartTime} --> ${currentEndTime}`);
-        arrangedBlocks.push(sentenceText);
-        arrangedBlocks.push('');
-        
-        currentSentence = [];
-        currentStartTime = null;
-        index++;
-      }
-    }
-  });
-  
-  // 남은 문장 처리
-  if (currentSentence.length > 0 && currentStartTime) {
-    const sentenceText = currentSentence.join(' ');
-    arrangedBlocks.push(`${index}`);
-    arrangedBlocks.push(`${currentStartTime} --> ${currentEndTime}`);
-    arrangedBlocks.push(sentenceText);
-    arrangedBlocks.push('');
-  }
-  
-  return arrangedBlocks.join('\n');
-}
-
-// OPTIONS 메소드 (CORS 프리플라이트 요청 처리)
 export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, {
     status: 200,

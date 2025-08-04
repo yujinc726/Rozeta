@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, Fragment } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,15 +16,16 @@ import { recordEntries } from "@/lib/database"
 import type { Recording as DbRecording, RecordEntry } from "@/lib/supabase"
 import WhisperProcessor from "./whisper-processor"
 import { extractTranscriptBySlides, getCurrentSubtitle } from "@/lib/transcript-utils"
+import { useSidebarContext } from "@/app/contexts/sidebar-context"
 
 interface RecordDetailProps {
   recording: DbRecording
   onOpenWhisper?: () => void
   onOpenAIExplanation?: () => void
-  isSidebarCollapsed?: boolean
 }
 
-export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplanation, isSidebarCollapsed = false }: RecordDetailProps) {
+export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplanation }: RecordDetailProps) {
+  const { isSidebarCollapsed } = useSidebarContext()
   const router = useRouter()
   const [recordEntriesList, setRecordEntriesList] = useState<RecordEntry[]>([])
   const [editingEntry, setEditingEntry] = useState<RecordEntry | null>(null)
@@ -70,11 +71,22 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
   // 현재 재생 시간에 해당하는 자막 찾기
   useEffect(() => {
-    if (recording.transcript && isPlaying) {
-      const subtitle = getCurrentSubtitle(recording.transcript, currentTime)
-      setCurrentSubtitle(subtitle)
+    if (recording.subtitles && isPlaying) {  // subtitles 사용
+      const updateSubtitle = () => {
+        if (audioRef.current && !audioRef.current.paused && recording.subtitles) {
+          const subtitle = getCurrentSubtitle(recording.subtitles, audioRef.current.currentTime)
+          setCurrentSubtitle(subtitle)
+        }
+      }
+      
+      // 초기 자막 설정
+      updateSubtitle()
+      
+      // 자막 업데이트는 updateProgress와 함께 처리되므로 별도 interval 불필요
+    } else if (!isPlaying) {
+      setCurrentSubtitle('')
     }
-  }, [recording.transcript, currentTime, isPlaying])
+  }, [recording.subtitles, isPlaying])
 
   // 키보드 단축키 처리
   useEffect(() => {
@@ -311,6 +323,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       const currentAudioTime = audioRef.current.currentTime
       if (isFinite(currentAudioTime)) {
         setCurrentTime(currentAudioTime)
+        
+        // 자막 업데이트
+        if (recording.subtitles) {  // subtitles 사용
+          const subtitle = getCurrentSubtitle(recording.subtitles, currentAudioTime)
+          setCurrentSubtitle(subtitle)
+        }
       }
       if (!audioRef.current.paused) {
         animationRef.current = requestAnimationFrame(updateProgress)
@@ -510,27 +528,24 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               </div>
             </CardHeader>
             <CardContent>
-              {hasTranscript ? (
+              <div className="space-y-3">
                 <p className="text-sm text-gray-700">
-                  음성이 텍스트로 변환되었습니다. AI 설명을 확인할 수 있습니다.
+                  {hasTranscript
+                    ? "이미 텍스트 변환이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
+                    : "음성을 텍스트로 변환하면 AI가 강의 내용을 분석하고 요약해드립니다."}
                 </p>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5" />
-                    <p className="text-sm text-gray-700">
-                      음성을 텍스트로 변환하면 AI가 강의 내용을 분석하고 요약해드립니다.
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => setShowWhisperDialog(true)}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                  >
-                    <Wand2 className="w-4 h-4 mr-2" />
-                    AI 텍스트 변환
-                  </Button>
-                </div>
-              )}
+                <Button 
+                  onClick={() => setShowWhisperDialog(true)}
+                  className={`w-full bg-gradient-to-r ${
+                    hasTranscript
+                      ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
+                      : 'from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
+                  }`}
+                >
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  {hasTranscript ? "텍스트 다시 변환" : "AI 텍스트 변환"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -602,30 +617,34 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
         </div>
 
-        {/* 현재 슬라이드 표시 */}
+        {/* 현재 슬라이드 표시 - 컴팩트 버전 */}
         {currentEntry && (
           <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-purple-600" />
-                현재 슬라이드
+                  <span>슬라이드</span>
+                  <Badge variant="outline" className="ml-2">
+                    {getCurrentEntryIndex() + 1} / {recordEntriesList.length}
+                  </Badge>
+                </div>
+                <span className="text-xs text-gray-400 font-normal">← → 키로 이동</span>
               </CardTitle>
               <CardDescription>
-                <div className="flex items-center justify-between">
-                  <span>{currentEntry.material_name} - 슬라이드 {currentEntry.slide_number}</span>
-                  <span className="text-xs text-gray-400">← → 키로 이동 가능</span>
-                </div>
+                {currentEntry.material_name}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {/* 슬라이드 이미지 */}
-                <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden group">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* 왼쪽: 슬라이드 이미지 */}
+                <div className="lg:col-span-2 space-y-3">
+                  <div className="relative h-96 bg-gray-100 rounded-lg overflow-hidden group">
                   {slideLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="flex flex-col items-center gap-2">
-                        <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-sm text-gray-500">슬라이드 로딩 중...</p>
+                          <div className="w-6 h-6 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                          <p className="text-xs text-gray-500">로딩 중...</p>
                       </div>
                     </div>
                   ) : currentSlideImage ? (
@@ -636,7 +655,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                         className="w-full h-full object-contain"
                         onError={(e) => {
                           console.error('Image load error')
-                          e.currentTarget.src = `https://via.placeholder.com/800x600/f3f4f6/6b7280?text=Slide+${currentEntry.slide_number}`
+                            e.currentTarget.src = `https://via.placeholder.com/400x300/f3f4f6/6b7280?text=Slide+${currentEntry.slide_number}`
                         }}
                       />
                       
@@ -647,9 +666,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                           disabled={getCurrentEntryIndex() <= 0}
                           size="icon"
                           variant="ghost"
-                          className="ml-2 bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                            className="ml-1 bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
                         >
-                          <ChevronLeft className="w-6 h-6" />
+                            <ChevronLeft className="w-5 h-5" />
                         </Button>
                       </div>
                       
@@ -659,40 +678,51 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                           disabled={getCurrentEntryIndex() >= recordEntriesList.length - 1}
                           size="icon"
                           variant="ghost"
-                          className="mr-2 bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                            className="mr-1 bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
                         >
-                          <ChevronRight className="w-6 h-6" />
+                            <ChevronRight className="w-5 h-5" />
                         </Button>
-                      </div>
-                      
-                      {/* 슬라이드 번호 표시 */}
-                      <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-black/50 text-white px-3 py-1 rounded-full backdrop-blur-sm">
-                          <span className="text-sm font-medium">
-                            {getCurrentEntryIndex() + 1} / {recordEntriesList.length}
-                          </span>
-                        </div>
                       </div>
                     </>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-sm text-gray-500">슬라이드를 불러올 수 없습니다</p>
+                        <p className="text-xs text-gray-500">슬라이드를 불러올 수 없습니다</p>
                     </div>
                   )}
                 </div>
                 
-                {/* 메모 */}
-                {currentEntry.memo && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">메모</h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{currentEntry.memo}</p>
-                  </div>
-                )}
-                
                 {/* 시간 정보 */}
-                <div className="flex justify-between text-sm text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded">
                   <span>시작: {currentEntry.start_time}</span>
                   {currentEntry.end_time && <span>종료: {currentEntry.end_time}</span>}
+                  </div>
+                </div>
+
+                {/* 오른쪽: 메모 */}
+                <div className="lg:col-span-1 space-y-4">
+                  {/* 메모 */}
+                  {currentEntry.memo ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                          <Edit className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-800">메모</h4>
+                      </div>
+                      <div className="bg-gradient-to-br from-amber-50/70 to-orange-50/70 border border-amber-200 rounded-lg p-4">
+                        <p className="text-sm text-gray-800 leading-6 font-medium whitespace-pre-wrap">
+                          {currentEntry.memo}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <div className="text-center">
+                        <Edit className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">이 슬라이드의 메모가 없습니다</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -706,6 +736,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-purple-600" />
                 슬라이드 기록
+                <Badge variant="outline">{recordEntriesList.length}개</Badge>
               </CardTitle>
               <div className="flex items-center gap-2">
                 {recording.transcript && (
@@ -716,10 +747,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     className="gap-2"
                   >
                     <FileText className="w-4 h-4" />
-                    자막 {showTranscripts ? '숨기기' : '보기'}
+                    강의 내용 {showTranscripts ? '숨기기' : '보기'}
                   </Button>
                 )}
-                <Badge variant="outline">{recordEntriesList.length}개</Badge>
               </div>
             </div>
           </CardHeader>
@@ -733,30 +763,17 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 슬라이드 기록이 없습니다.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">강의안명</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">슬라이드 번호</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">시작 시간</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">종료 시간</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">메모</th>
-                      <th className="text-center px-4 py-3 text-sm font-medium text-gray-700">작업</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="space-y-4">
                     {recordEntriesList.map((entry) => {
                       const slideTranscript = slideTranscripts.find(
                         st => st.slideNumber === entry.slide_number
                       )
                       
                       return (
-                        <>
-                          <tr 
-                            key={entry.id} 
-                            className={`border-b hover:bg-gray-50 transition-colors cursor-pointer ${
-                              currentEntry?.id === entry.id ? 'bg-purple-50 border-purple-200' : ''
+                    <div key={entry.id} className={`relative rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                      currentEntry?.id === entry.id 
+                        ? 'bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-50 border-purple-200 shadow-lg' 
+                        : 'bg-gradient-to-br from-gray-50 via-white to-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md'
                             }`}
                             onClick={() => {
                               if (editingEntry?.id !== entry.id) {
@@ -766,143 +783,196 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                                 // 시작 시간으로 이동
                                 seekToTime(entry.start_time)
                               }
+                    }}>
+                      
+                      {/* 슬라이드 정보 헤더 */}
+                      <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={currentEntry?.id === entry.id ? 'default' : 'secondary'} className="text-sm font-medium">
+                              슬라이드 {entry.slide_number}
+                            </Badge>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-sm text-gray-600">{entry.material_name}</span>
+                            <span className="text-gray-400">•</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                seekToTime(entry.start_time)
+                              }}
+                              className="text-sm text-blue-600 hover:underline font-medium"
+                            >
+                              {entry.start_time}
+                            </button>
+                            {entry.end_time && (
+                              <>
+                                <span className="text-gray-400">~</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    seekToTime(entry.end_time!)
+                                  }}
+                                  className="text-sm text-blue-600 hover:underline font-medium"
+                                >
+                                  {entry.end_time}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {currentEntry?.id === entry.id && isPlaying && (
+                            <div className="flex items-center gap-2">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              </div>
+                              <Badge className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0 text-xs px-2 py-1">
+                                재생 중
+                              </Badge>
+                            </div>
+                          )}
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEdit(entry)
                             }}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
                           >
-                        {editingEntry?.id === entry.id ? (
-                          <>
-                            <td className="px-4 py-3">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* 편집 모드 */}
+                      {editingEntry?.id === entry.id && (
+                        <div className="p-4 space-y-4 bg-gray-50/50">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="material_name" className="text-sm font-medium">강의안명</Label>
                               <Input
+                                id="material_name"
                                 value={editedData?.material_name || ''}
                                 onChange={(e) => setEditedData(prev => prev ? {...prev, material_name: e.target.value} : null)}
-                                className="w-full"
+                                className="mt-1"
                               />
-                            </td>
-                            <td className="px-4 py-3">
+                            </div>
+                            <div>
+                              <Label htmlFor="slide_number" className="text-sm font-medium">슬라이드 번호</Label>
                               <Input
+                                id="slide_number"
                                 type="number"
                                 value={editedData?.slide_number || ''}
                                 onChange={(e) => setEditedData(prev => prev ? {...prev, slide_number: parseInt(e.target.value)} : null)}
-                                className="w-20"
+                                className="mt-1"
                               />
-                            </td>
-                            <td className="px-4 py-3">
+                            </div>
+                            <div>
+                              <Label htmlFor="start_time" className="text-sm font-medium">시작 시간</Label>
                               <Input
+                                id="start_time"
                                 value={editedData?.start_time || ''}
                                 onChange={(e) => setEditedData(prev => prev ? {...prev, start_time: e.target.value} : null)}
-                                className="w-32"
+                                className="mt-1"
                               />
-                            </td>
-                            <td className="px-4 py-3">
+                            </div>
+                            <div>
+                              <Label htmlFor="end_time" className="text-sm font-medium">종료 시간</Label>
                               <Input
+                                id="end_time"
                                 value={editedData?.end_time || ''}
                                 onChange={(e) => setEditedData(prev => prev ? {...prev, end_time: e.target.value} : null)}
-                                className="w-32"
+                                className="mt-1"
                               />
-                            </td>
-                            <td className="px-4 py-3">
-                              <Input
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="memo" className="text-sm font-medium">메모</Label>
+                            <Textarea
+                              id="memo"
                                 value={editedData?.memo || ''}
                                 onChange={(e) => setEditedData(prev => prev ? {...prev, memo: e.target.value} : null)}
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex justify-center gap-2">
-                                <Button
-                                  onClick={handleSave}
-                                  size="sm"
-                                  variant="ghost"
-                                >
-                                  <Save className="w-4 h-4" />
-                                </Button>
+                              className="mt-1"
+                              rows={2}
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2">
                                 <Button
                                   onClick={handleCancel}
                                   size="sm"
-                                  variant="ghost"
+                              variant="outline"
                                 >
-                                  <X className="w-4 h-4" />
+                              <X className="w-4 h-4 mr-1" />
+                              취소
                                 </Button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-4 py-3 text-sm">{entry.material_name}</td>
-                            <td className="px-4 py-3 text-sm">{entry.slide_number}</td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  seekToTime(entry.start_time)
-                                }}
-                                className="text-sm text-blue-600 hover:underline"
-                              >
-                                {entry.start_time}
-                              </button>
-                            </td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  entry.end_time && seekToTime(entry.end_time)
-                                }}
-                                className="text-sm text-blue-600 hover:underline"
-                                disabled={!entry.end_time}
-                              >
-                                {entry.end_time || '-'}
-                              </button>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{entry.memo || '-'}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex justify-center">
                                 <Button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleEdit(entry)
-                                  }}
+                              onClick={handleSave}
                                   size="sm"
-                                  variant="ghost"
                                 >
-                                  <Edit className="w-4 h-4" />
+                              <Save className="w-4 h-4 mr-1" />
+                              저장
                                 </Button>
                               </div>
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                      {showTranscripts && slideTranscript && slideTranscript.transcript && (
-                        <tr key={`transcript-${entry.id}`}>
-                          <td colSpan={6} className={`px-4 py-3 ${
-                            currentEntry?.id === entry.id ? 'bg-purple-50' : 'bg-gray-50'
-                          }`}>
+                        </div>
+                      )}
+
+                      {/* 메모 및 자막 */}
+                      {!editingEntry && (
+                        <div className="p-4 space-y-4">
+                          {/* 메모 */}
+                          {entry.memo && (
                             <div className="space-y-2">
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <FileText className="w-4 h-4" />
-                                <span className="font-medium">슬라이드 {entry.slide_number} 자막</span>
-                                {currentEntry?.id === entry.id && isPlaying && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    재생 중
-                                  </Badge>
-                                )}
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-amber-100 rounded-lg">
+                                  <Edit className="w-3 h-3 text-amber-600" />
+                                </div>
+                                <span className="text-sm font-medium text-gray-700">메모</span>
                               </div>
-                              <div className={`p-3 rounded-lg border ${
+                              <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3">
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.memo}</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* 자막 */}
+                          {slideTranscript?.transcript && showTranscripts && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-purple-100 rounded-lg">
+                                  <FileText className="w-3 h-3 text-purple-600" />
+                              </div>
+                                <span className="text-sm font-medium text-gray-700">강의 내용</span>
+                              </div>
+                              
+                              <div className="relative">
+                                <div className="absolute top-2 left-2 text-lg opacity-20 text-purple-400">"</div>
+                                <div className={`p-4 pl-6 rounded-lg border ${
                                 currentEntry?.id === entry.id 
-                                  ? 'bg-purple-50 border-purple-200' 
-                                  : 'bg-white border-gray-200'
+                                    ? 'bg-purple-50/50 border-purple-100' 
+                                    : 'bg-gray-50/50 border-gray-100'
                               }`}>
-                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                  <p className="text-sm text-gray-800 leading-6 font-medium tracking-wide whitespace-pre-wrap">
                                   {slideTranscript.transcript}
                                 </p>
                               </div>
+                                <div className="absolute bottom-2 right-2 text-lg opacity-20 text-purple-400 rotate-180">"</div>
                             </div>
-                          </td>
-                        </tr>
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </>
+                      
+                      {/* 하단 장식 라인 */}
+                      {currentEntry?.id === entry.id && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-purple-400/30 to-transparent rounded-b-xl"></div>
+                      )}
+                    </div>
                   )
                 })}
-                  </tbody>
-                </table>
               </div>
             )}
           </CardContent>
@@ -910,14 +980,31 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       </div>
 
       {/* 실시간 자막 */}
-      {recording.transcript && currentSubtitle && isPlaying && showLiveSubtitle && (
+      {recording.subtitles && currentSubtitle && isPlaying && showLiveSubtitle && (
         <div 
-          className={`fixed bottom-20 right-0 bg-black/80 text-white backdrop-blur-sm z-50 transition-all duration-300 ${
-            isSidebarCollapsed ? 'left-16' : 'left-80'
-          }`}
+          className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 max-w-4xl mx-auto z-50 transition-all duration-500 ease-out animate-in slide-in-from-bottom-4 fade-in-0`}
         >
-          <div className="px-6 py-3">
-            <p className="text-lg leading-relaxed">{currentSubtitle}</p>
+          <div className="relative">
+            {/* 글로우 효과를 위한 배경 */}
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20 rounded-xl blur-xl"></div>
+            
+            {/* 메인 자막 컨테이너 */}
+            <div className="relative bg-gradient-to-r from-gray-900/95 via-black/95 to-gray-900/95 backdrop-blur-lg rounded-xl border border-white/10 shadow-2xl">
+              <div className="px-8 py-4">
+                {/* 자막 텍스트 */}
+                <p className="text-xl font-medium text-white leading-relaxed text-center tracking-wide drop-shadow-lg">
+                  {currentSubtitle}
+                </p>
+                
+                {/* 장식적 요소 */}
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full shadow-lg"></div>
+                </div>
+              </div>
+              
+              {/* 하단 그라데이션 라인 */}
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-purple-400/50 to-transparent"></div>
+            </div>
           </div>
         </div>
       )}
@@ -925,9 +1012,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       {/* 플로팅 오디오 플레이어 */}
       {recording.audio_url && (
         <div 
-          className={`fixed bottom-0 right-0 bg-white border-t border-gray-200 shadow-lg backdrop-blur-sm z-40 transition-all duration-300 ${
-            isSidebarCollapsed ? 'left-16' : 'left-80'
-          }`}
+          className="fixed bottom-0 bg-white border-t border-gray-200 shadow-lg backdrop-blur-sm z-40 transition-all duration-300"
+          style={{
+            left: isSidebarCollapsed ? '4rem' : '20rem',
+            right: 0,
+            width: isSidebarCollapsed ? 'calc(100vw - 4rem)' : 'calc(100vw - 20rem)'
+          }}
         >
           <audio
             ref={audioRef}
@@ -959,7 +1049,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             className="hidden"
           />
           
-          <div className="max-w-7xl mx-auto px-6 py-3">
+          <div className="w-full px-6 py-3">
             <div className="flex items-center gap-6">
               {/* 현재 재생 정보 */}
               <div className="flex items-center gap-3 min-w-0 w-72">
@@ -1037,7 +1127,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
               {/* 추가 컨트롤 */}
               <div className="flex items-center gap-2">
-                {recording.transcript && (
+                {recording.subtitles && (
                   <Button
                     onClick={() => setShowLiveSubtitle(!showLiveSubtitle)}
                     size="sm"
@@ -1061,7 +1151,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
       {/* Whisper Dialog */}
       <Dialog open={showWhisperDialog} onOpenChange={setShowWhisperDialog}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           <VisuallyHidden.Root>
             <DialogTitle>AI 텍스트 변환</DialogTitle>
           </VisuallyHidden.Root>

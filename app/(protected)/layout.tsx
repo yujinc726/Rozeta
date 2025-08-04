@@ -8,8 +8,9 @@ import { subjects as subjectsDb, recordings as recordingsDb } from "@/lib/databa
 import type { Subject as DbSubject } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { SidebarProvider, useSidebarContext } from "@/app/contexts/sidebar-context"
 
-export default function ProtectedLayout({
+function ProtectedLayoutContent({
   children,
 }: {
   children: React.ReactNode
@@ -19,7 +20,7 @@ export default function ProtectedLayout({
   const [user, setUser] = useState<any>(null)
   const [subjects, setSubjects] = useState<DbSubject[]>([])
   const [selectedSubject, setSelectedSubject] = useState<DbSubject | null>(null)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const { isSidebarCollapsed, setIsSidebarCollapsed } = useSidebarContext()
   const [isLoading, setIsLoading] = useState(true)
 
   // 현재 경로에서 subject ID 추출
@@ -194,5 +195,19 @@ export default function ProtectedLayout({
         {children}
       </div>
     </div>
+  )
+}
+
+export default function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <SidebarProvider>
+      <ProtectedLayoutContent>
+        {children}
+      </ProtectedLayoutContent>
+    </SidebarProvider>
   )
 }

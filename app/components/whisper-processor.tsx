@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, Upload, Wand2, Download, FileAudio, X } from "lucide-react"
+import { ArrowLeft, Upload, Wand2, Download, FileAudio, X, Database } from "lucide-react"
 import { toast } from "sonner"
 import { recordings } from "@/lib/database"
 
@@ -24,8 +24,6 @@ interface WhisperProcessorProps {
 export default function WhisperProcessor({ recordingId, audioUrl, onBack }: WhisperProcessorProps) {
   const router = useRouter()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [modelSize, setModelSize] = useState("large-v3")
-  const [language, setLanguage] = useState("Auto")
   const [stableTs, setStableTs] = useState(true)
   const [removeRepeated, setRemoveRepeated] = useState(true)
   const [merge, setMerge] = useState(true)
@@ -34,8 +32,8 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
   const [progress, setProgress] = useState(0)
   const [rawSubtitles, setRawSubtitles] = useState("")
   const [arrangedSubtitles, setArrangedSubtitles] = useState("")
-  const [rawSubtitlesUrl, setRawSubtitlesUrl] = useState("")
-  const [arrangedSubtitlesUrl, setArrangedSubtitlesUrl] = useState("")
+
+  const [isSuccess, setIsSuccess] = useState(false)
 
   // Load audio from URL if provided
   useEffect(() => {
@@ -54,6 +52,21 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
     }
   }, [audioUrl])
 
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => {
+        if (onBack) {
+          onBack();
+        } else {
+          router.back();
+        }
+      }, 1500); // 1.5초 후에 실행
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, onBack, router]);
+
+
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file && (file.type.includes('audio') || file.type.includes('video'))) {
@@ -64,7 +77,15 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
     }
   }
 
+
+
   const processAudio = async () => {
+    // Reset states for re-processing
+    setIsSuccess(false);
+    setProgress(0);
+    setRawSubtitles("");
+    setArrangedSubtitles("");
+
     if (!selectedFile) {
       toast.error('오디오 파일을 선택해주세요.')
       return
@@ -72,59 +93,59 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
 
     setIsProcessing(true)
     setProgress(10)
-
+    
     try {
-      // 1. 파일 업로드
+      toast.info('파일을 서버로 전송하는 중...')
       const formData = new FormData()
       formData.append('audio', selectedFile)
-      formData.append('modelSize', modelSize)
-      formData.append('language', language)
-      formData.append('stableTs', stableTs.toString())
-      formData.append('removeRepeated', removeRepeated.toString())
-      formData.append('merge', merge.toString())
       formData.append('prompt', prompt)
+      // WhisperX specific params can be added here if needed in the future
 
       setProgress(30)
       toast.info('AI가 음성을 텍스트로 변환하는 중...')
 
-      // Next.js API Route로 요청
       const response = await fetch('/api/transcribe', {
         method: 'POST',
-        body: formData
+        body: formData,
       })
 
+      setProgress(70)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('API Error:', errorData)
-        throw new Error(errorData.error || '처리 중 오류가 발생했습니다.')
+        const errorData = await response.json().catch(() => ({ 
+          error: `HTTP ${response.status}: 서버 응답을 파싱할 수 없습니다.`
+        }));
+        throw new Error(errorData.error || `HTTP ${response.status}: 서버 오류가 발생했습니다.`);
       }
 
-      setProgress(70)
-      
       const result = await response.json()
       
       setRawSubtitles(result.rawSubtitles)
       setArrangedSubtitles(result.arrangedSubtitles)
-      setRawSubtitlesUrl(result.rawSubtitlesUrl)
-      setArrangedSubtitlesUrl(result.arrangedSubtitlesUrl)
+      
+      // These are not available in the new flow, can be removed or adapted if needed
+      // setRawSubtitlesUrl(result.rawSubtitlesUrl)
+      // setArrangedSubtitlesUrl(result.arrangedSubtitlesUrl)
       
       setProgress(90)
       
-      // 데이터베이스에 transcript 저장
-      if (recordingId && result.arrangedSubtitles) {
+      // Save transcripts to the database
+      if (recordingId && result.rawSubtitles && result.arrangedSubtitles) {
         try {
           await recordings.update(recordingId, {
-            transcript: result.arrangedSubtitles
+            transcript: result.rawSubtitles,     // 단어 단위 자막
+            subtitles: result.arrangedSubtitles  // 구문 단위 자막
           })
-          console.log('Transcript saved to database')
+          console.log('Transcripts saved to database')
         } catch (dbError) {
-          console.error('Failed to save transcript:', dbError)
+          console.error('Failed to save transcripts:', dbError)
           toast.error('텍스트 저장 중 오류가 발생했습니다.')
         }
       }
       
       setProgress(100)
       toast.success('음성 텍스트 변환이 완료되었습니다!')
+      setIsSuccess(true)
       
     } catch (error: any) {
       console.error('처리 오류:', error)
@@ -164,108 +185,30 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
           {/* Model Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>변환 설정</CardTitle>
-              <CardDescription>음성 인식을 위한 상세 설정을 구성합니다</CardDescription>
+              <CardTitle>AI 프롬프트</CardTitle>
+              <CardDescription>고유명사, 전문 용어 등을 미리 알려주면 AI가 음성을 더 정확한 텍스트로 변환합니다.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>AI 모델 크기</Label>
-                  <Select value={modelSize} onValueChange={setModelSize}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="large-v3">Large-v3 (최고 정확도, 권장)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">Incredibly Fast Whisper 모델을 사용합니다</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>강의 언어</Label>
-                  <Select value={language} onValueChange={setLanguage}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Auto">자동 감지</SelectItem>
-                      <SelectItem value="ko">한국어</SelectItem>
-                      <SelectItem value="en">영어</SelectItem>
-                      <SelectItem value="ja">일본어</SelectItem>
-                      <SelectItem value="zh">중국어</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">주 언어를 선택하면 더 정확합니다</p>
-                </div>
-              </div>
-
-              {/* 텍스트 정리 옵션 - 임시 비활성화
-              <div className="border-t pt-6">
-                <Label className="text-base font-semibold mb-4 block">텍스트 정리 옵션</Label>
-                <div className="space-y-3">
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id="stable-ts"
-                      checked={stableTs}
-                      onCheckedChange={(checked) => setStableTs(checked as boolean)}
-                      className="mt-1"
-                    />
-                    <div>
-                      <Label htmlFor="stable-ts" className="font-normal cursor-pointer">
-                        타임스탬프 안정화
-                      </Label>
-                      <p className="text-xs text-gray-500 mt-1">더 정확한 시간 동기화를 위해 사용합니다</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id="remove-repeated"
-                      checked={removeRepeated}
-                      onCheckedChange={(checked) => setRemoveRepeated(checked as boolean)}
-                      className="mt-1"
-                    />
-                    <div>
-                      <Label htmlFor="remove-repeated" className="font-normal cursor-pointer">
-                        반복 단어 제거
-                      </Label>
-                      <p className="text-xs text-gray-500 mt-1">"어... 그... 음..." 같은 불필요한 반복을 제거합니다</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id="merge"
-                      checked={merge}
-                      onCheckedChange={(checked) => setMerge(checked as boolean)}
-                      className="mt-1"
-                    />
-                    <div>
-                      <Label htmlFor="merge" className="font-normal cursor-pointer">
-                        문장 자동 병합
-                      </Label>
-                      <p className="text-xs text-gray-500 mt-1">짧게 끊긴 문장을 자연스럽게 연결합니다</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              */}
-
-              <div className="pt-6">
-                <Label>강의 내용 힌트 (선택사항)</Label>
+            <CardContent>
+              <div>
+                <Label>프롬프트 입력 (선택사항)</Label>
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   rows={4}
-                  placeholder="예시) 컴퓨터 공학 강의, 자료구조, 알고리즘, Binary Search Tree, Hash Table 등의 용어가 나옵니다..."
+                  placeholder="예: Rozeta, LangChain, Vercel AI SDK, Next.js와 같은 전문 용어나 사람 이름(홍길동)을 입력하면 AI가 더 정확하게 인식합니다."
                   className="mt-2"
                 />
-                <p className="text-xs text-gray-500 mt-2">전문 용어나 고유명사를 입력하면 인식률이 향상됩니다</p>
+                <p className="text-xs text-gray-500 mt-2">고유명사, 전문 용어, 자주 틀리는 단어를 입력해주세요.</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Processing Button and Status */}
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
+
+
+              {/* 텍스트 변환 버튼 */}
               <Button
                 onClick={processAudio}
                 disabled={!selectedFile || isProcessing}
@@ -302,7 +245,7 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
               )}
 
               {/* Success Message */}
-              {!isProcessing && rawSubtitles && (
+              {isSuccess && (
                 <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
@@ -313,22 +256,8 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
                     <div>
                       <p className="font-medium text-green-900">텍스트 변환 완료!</p>
                       <p className="text-sm text-green-700 mt-1">
-                        음성이 성공적으로 텍스트로 변환되었습니다.
+                        결과가 저장되었습니다. 잠시 후 창이 자동으로 닫힙니다.
                       </p>
-                      <Button
-                        onClick={() => {
-                          if (onBack) {
-                            onBack()
-                          } else {
-                            router.back()
-                          }
-                        }}
-                        size="sm"
-                        variant="outline"
-                        className="mt-3 text-green-700 border-green-300 hover:bg-green-100"
-                      >
-                        창 닫기
-                      </Button>
                     </div>
                   </div>
                 </div>

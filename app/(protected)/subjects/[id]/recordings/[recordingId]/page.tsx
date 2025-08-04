@@ -88,7 +88,6 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
         // TODO: AI 설명 화면으로 이동
         toast.info('AI 설명 기능은 준비 중입니다.')
       }}
-      isSidebarCollapsed={false}
     />
   )
 }
