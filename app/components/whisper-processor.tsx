@@ -24,7 +24,7 @@ interface WhisperProcessorProps {
 export default function WhisperProcessor({ recordingId, audioUrl, onBack }: WhisperProcessorProps) {
   const router = useRouter()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [modelSize, setModelSize] = useState("turbo")
+  const [modelSize, setModelSize] = useState("large-v3")
   const [language, setLanguage] = useState("Auto")
   const [stableTs, setStableTs] = useState(true)
   const [removeRepeated, setRemoveRepeated] = useState(true)
@@ -87,8 +87,8 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
       setProgress(30)
       toast.info('AI가 음성을 텍스트로 변환하는 중...')
 
-      // Python Whisper 서버로 요청 (로컬 서버 포트 8000)
-      const response = await fetch('http://localhost:8000/api/whisper/process', {
+      // Next.js API Route로 요청
+      const response = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData
       })
@@ -173,13 +173,10 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="turbo">Turbo (빠르고 정확)</SelectItem>
-                      <SelectItem value="large-v3">Large-v3 (최고 정확도)</SelectItem>
-                      <SelectItem value="medium">Medium (균형)</SelectItem>
-                      <SelectItem value="small">Small (빠름)</SelectItem>
+                      <SelectItem value="large-v3">Large-v3 (최고 정확도, 권장)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-gray-500">강의 녹음에는 Turbo 모델을 권장합니다</p>
+                  <p className="text-xs text-gray-500">Incredibly Fast Whisper 모델을 사용합니다</p>
                 </div>
                 <div className="space-y-2">
                   <Label>강의 언어</Label>

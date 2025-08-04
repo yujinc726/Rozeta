@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { recordEntries } from "@/lib/database"
 import type { Recording as DbRecording, RecordEntry } from "@/lib/supabase"
 import WhisperProcessor from "./whisper-processor"
+import { extractTranscriptBySlides, getCurrentSubtitle } from "@/lib/transcript-utils"
 
 interface RecordDetailProps {
   recording: DbRecording
@@ -36,6 +37,15 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [currentSlideImage, setCurrentSlideImage] = useState<string | null>(null)
   const [slideLoading, setSlideLoading] = useState(false)
   const [showWhisperDialog, setShowWhisperDialog] = useState(false)
+  const [slideTranscripts, setSlideTranscripts] = useState<Array<{
+    slideNumber: number;
+    startTime: string;
+    endTime: string | undefined;
+    transcript: string;
+  }>>([])
+  const [showTranscripts, setShowTranscripts] = useState(true)
+  const [showLiveSubtitle, setShowLiveSubtitle] = useState(true)
+  const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const audioRef = useRef<HTMLAudioElement>(null)
   const animationRef = useRef<number | null>(null)
 
@@ -43,6 +53,28 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   useEffect(() => {
     loadRecordEntries()
   }, [recording.id])
+
+  // 자막을 슬라이드별로 분할
+  useEffect(() => {
+    if (recording.transcript && recordEntriesList.length > 0) {
+      const slideSyncs = recordEntriesList.map(entry => ({
+        slideNumber: entry.slide_number,
+        startTime: entry.start_time,
+        endTime: entry.end_time
+      }))
+      
+      const transcripts = extractTranscriptBySlides(recording.transcript, slideSyncs)
+      setSlideTranscripts(transcripts)
+    }
+  }, [recording.transcript, recordEntriesList])
+
+  // 현재 재생 시간에 해당하는 자막 찾기
+  useEffect(() => {
+    if (recording.transcript && isPlaying) {
+      const subtitle = getCurrentSubtitle(recording.transcript, currentTime)
+      setCurrentSubtitle(subtitle)
+    }
+  }, [recording.transcript, currentTime, isPlaying])
 
   // 키보드 단축키 처리
   useEffect(() => {
@@ -675,7 +707,20 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 <Clock className="w-5 h-5 text-purple-600" />
                 슬라이드 기록
               </CardTitle>
-              <Badge variant="outline">{recordEntriesList.length}개</Badge>
+              <div className="flex items-center gap-2">
+                {recording.transcript && (
+                  <Button
+                    onClick={() => setShowTranscripts(!showTranscripts)}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    자막 {showTranscripts ? '숨기기' : '보기'}
+                  </Button>
+                )}
+                <Badge variant="outline">{recordEntriesList.length}개</Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -701,22 +746,28 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     </tr>
                   </thead>
                   <tbody>
-                    {recordEntriesList.map((entry) => (
-                      <tr 
-                        key={entry.id} 
-                        className={`border-b hover:bg-gray-50 transition-colors cursor-pointer ${
-                          currentEntry?.id === entry.id ? 'bg-purple-50 border-purple-200' : ''
-                        }`}
-                        onClick={() => {
-                          if (editingEntry?.id !== entry.id) {
-                            // 해당 슬라이드로 이동
-                            setCurrentEntry(entry)
-                            loadSlideImage(entry)
-                            // 시작 시간으로 이동
-                            seekToTime(entry.start_time)
-                          }
-                        }}
-                      >
+                    {recordEntriesList.map((entry) => {
+                      const slideTranscript = slideTranscripts.find(
+                        st => st.slideNumber === entry.slide_number
+                      )
+                      
+                      return (
+                        <>
+                          <tr 
+                            key={entry.id} 
+                            className={`border-b hover:bg-gray-50 transition-colors cursor-pointer ${
+                              currentEntry?.id === entry.id ? 'bg-purple-50 border-purple-200' : ''
+                            }`}
+                            onClick={() => {
+                              if (editingEntry?.id !== entry.id) {
+                                // 해당 슬라이드로 이동
+                                setCurrentEntry(entry)
+                                loadSlideImage(entry)
+                                // 시작 시간으로 이동
+                                seekToTime(entry.start_time)
+                              }
+                            }}
+                          >
                         {editingEntry?.id === entry.id ? (
                           <>
                             <td className="px-4 py-3">
@@ -819,7 +870,37 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                           </>
                         )}
                       </tr>
-                    ))}
+                      {showTranscripts && slideTranscript && slideTranscript.transcript && (
+                        <tr key={`transcript-${entry.id}`}>
+                          <td colSpan={6} className={`px-4 py-3 ${
+                            currentEntry?.id === entry.id ? 'bg-purple-50' : 'bg-gray-50'
+                          }`}>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <FileText className="w-4 h-4" />
+                                <span className="font-medium">슬라이드 {entry.slide_number} 자막</span>
+                                {currentEntry?.id === entry.id && isPlaying && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    재생 중
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className={`p-3 rounded-lg border ${
+                                currentEntry?.id === entry.id 
+                                  ? 'bg-purple-50 border-purple-200' 
+                                  : 'bg-white border-gray-200'
+                              }`}>
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                  {slideTranscript.transcript}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })}
                   </tbody>
                 </table>
               </div>
@@ -827,6 +908,19 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           </CardContent>
         </Card>
       </div>
+
+      {/* 실시간 자막 */}
+      {recording.transcript && currentSubtitle && isPlaying && showLiveSubtitle && (
+        <div 
+          className={`fixed bottom-20 right-0 bg-black/80 text-white backdrop-blur-sm z-50 transition-all duration-300 ${
+            isSidebarCollapsed ? 'left-16' : 'left-80'
+          }`}
+        >
+          <div className="px-6 py-3">
+            <p className="text-lg leading-relaxed">{currentSubtitle}</p>
+          </div>
+        </div>
+      )}
 
       {/* 플로팅 오디오 플레이어 */}
       {recording.audio_url && (
@@ -941,11 +1035,24 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 </span>
               </div>
 
-              {/* 추가 정보 표시 (선택사항) */}
-              <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500">
-                <span>재생 속도: 1.0x</span>
-                <span>•</span>
-                <span>스페이스바: 재생/일시정지</span>
+              {/* 추가 컨트롤 */}
+              <div className="flex items-center gap-2">
+                {recording.transcript && (
+                  <Button
+                    onClick={() => setShowLiveSubtitle(!showLiveSubtitle)}
+                    size="sm"
+                    variant="ghost"
+                    className={`gap-1 text-xs ${showLiveSubtitle ? 'text-purple-600' : 'text-gray-500'}`}
+                  >
+                    <FileText className="w-3 h-3" />
+                    실시간 자막
+                  </Button>
+                )}
+                <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500">
+                  <span>재생 속도: 1.0x</span>
+                  <span>•</span>
+                  <span>스페이스바: 재생/일시정지</span>
+                </div>
               </div>
             </div>
           </div>
