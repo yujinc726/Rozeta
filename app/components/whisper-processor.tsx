@@ -94,7 +94,9 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
       })
 
       if (!response.ok) {
-        throw new Error('처리 중 오류가 발생했습니다.')
+        const errorData = await response.json()
+        console.error('API Error:', errorData)
+        throw new Error(errorData.error || '처리 중 오류가 발생했습니다.')
       }
 
       setProgress(70)
@@ -124,9 +126,10 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
       setProgress(100)
       toast.success('음성 텍스트 변환이 완료되었습니다!')
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('처리 오류:', error)
-      toast.error('처리 중 오류가 발생했습니다.')
+      const errorMessage = error.message || '처리 중 오류가 발생했습니다.'
+      toast.error(errorMessage)
     } finally {
       setIsProcessing(false)
     }

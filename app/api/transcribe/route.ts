@@ -1,18 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Replicate from 'replicate';
 
-// Replicate client 초기화
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN!,
-});
+// Replicate client 초기화를 함수 내부로 이동
 
 export async function POST(request: NextRequest) {
   try {
+    // 환경 변수 확인
+    if (!process.env.REPLICATE_API_TOKEN) {
+      console.error('REPLICATE_API_TOKEN is not set');
+      return NextResponse.json(
+        { error: 'Replicate API 토큰이 설정되지 않았습니다. 환경 변수를 확인해주세요.' },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
     const modelSize = formData.get('modelSize') as string || 'turbo';
     const language = formData.get('language') as string || 'Auto';
     const prompt = formData.get('prompt') as string || '';
+
+    console.log('Processing audio:', {
+      fileName: audioFile?.name,
+      fileSize: audioFile?.size,
+      fileType: audioFile?.type,
+      modelSize,
+      language
+    });
 
     if (!audioFile) {
       return NextResponse.json(
@@ -27,6 +41,24 @@ export async function POST(request: NextRequest) {
     const base64Audio = buffer.toString('base64');
     const dataUri = `data:${audioFile.type};base64,${base64Audio}`;
 
+    // 파일 크기 체크 (Replicate 제한사항)
+    const fileSizeMB = audioFile.size / (1024 * 1024);
+    console.log(`Audio file size: ${fileSizeMB.toFixed(2)} MB`);
+    
+    if (fileSizeMB > 50) {
+      return NextResponse.json(
+        { error: '오디오 파일이 너무 큽니다. 50MB 이하의 파일을 사용해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    // Replicate client 초기화
+    const replicate = new Replicate({
+      auth: process.env.REPLICATE_API_TOKEN!,
+    });
+
+    console.log('Calling Replicate API...');
+    
     // Replicate 모델 실행
     const output = await replicate.run(
       "vaibhavs10/incredibly-fast-whisper:3ab86df6c8f54c11309d4d1f930ac292bad43ace52d10c80d87eb258b3c9f79c",
@@ -41,6 +73,8 @@ export async function POST(request: NextRequest) {
         }
       }
     );
+
+    console.log('Replicate API response received:', output ? 'Success' : 'Empty response');
 
     // 결과 처리
     const result = output as any;
@@ -63,10 +97,30 @@ export async function POST(request: NextRequest) {
       segments: segments
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Transcription error:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      status: error?.status,
+      response: error?.response,
+      stack: error?.stack
+    });
+    
+    // 더 구체적인 에러 메시지 반환
+    let errorMessage = '음성 변환 중 오류가 발생했습니다.';
+    
+    if (error?.message?.includes('API token')) {
+      errorMessage = 'Replicate API 토큰이 유효하지 않습니다.';
+    } else if (error?.message?.includes('rate limit')) {
+      errorMessage = 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
+    } else if (error?.message?.includes('insufficient credit')) {
+      errorMessage = 'Replicate 크레딧이 부족합니다.';
+    } else if (error?.message) {
+      errorMessage = `오류: ${error.message}`;
+    }
+    
     return NextResponse.json(
-      { error: '음성 변환 중 오류가 발생했습니다.' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
