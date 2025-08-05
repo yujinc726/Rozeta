@@ -12,7 +12,7 @@ import { ArrowLeft, Edit, Save, X, Play, Pause, Wand2, FileAudio, Brain, AlertCi
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 import { toast } from "sonner"
-import { recordEntries } from "@/lib/database"
+import { recordEntries, recordings } from "@/lib/database"
 import type { Recording as DbRecording, RecordEntry } from "@/lib/supabase"
 import WhisperProcessor from "./whisper-processor"
 import { extractTranscriptBySlides, getCurrentSubtitle } from "@/lib/transcript-utils"
@@ -47,6 +47,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [showTranscripts, setShowTranscripts] = useState(true)
   const [showLiveSubtitle, setShowLiveSubtitle] = useState(true)
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editedTitle, setEditedTitle] = useState(recording.title)
   const audioRef = useRef<HTMLAudioElement>(null)
   const animationRef = useRef<number | null>(null)
 
@@ -270,6 +272,21 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
     }
   }
 
+  const handleTitleSave = async () => {
+    if (editedTitle.trim() && editedTitle !== recording.title) {
+      try {
+        await recordings.update(recording.id, { title: editedTitle.trim() })
+        recording.title = editedTitle.trim() // 로컬 상태 업데이트
+        toast.success('제목이 수정되었습니다.')
+      } catch (error) {
+        console.error('Failed to update title:', error)
+        toast.error('제목 수정에 실패했습니다.')
+        setEditedTitle(recording.title) // 원래 제목으로 복원
+      }
+    }
+    setIsEditingTitle(false)
+  }
+
   const handleEdit = (entry: RecordEntry) => {
     setEditingEntry(entry)
     setEditedData({ ...entry })
@@ -478,26 +495,65 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   return (
     <div className="flex-1 bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button 
-                onClick={() => router.push(`/subjects/${recording.subject_id}`)} 
-                variant="ghost" 
-                size="sm"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                뒤로가기
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{recording.title}</h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  {new Date(recording.created_at).toLocaleDateString('ko-KR')} · 
-                  {recording.duration ? formatDuration(recording.duration) : '시간 정보 없음'}
-                </p>
+      <div className="relative bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-200/60 shadow-sm">
+        <div className="px-6 py-5">
+                        {isEditingTitle ? (
+                <Input
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  onBlur={handleTitleSave}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleTitleSave()
+                    }
+                    if (e.key === 'Escape') {
+                      setIsEditingTitle(false)
+                      setEditedTitle(recording.title)
+                    }
+                  }}
+                  className="w-auto min-w-0 max-w-fit h-auto bg-transparent border-0 p-0 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 shadow-none"
+                  style={{ 
+                    fontSize: '1.5rem',
+                    fontWeight: '500',
+                    lineHeight: '2rem',
+                    color: 'rgb(15 23 42)',
+                    fontFamily: 'inherit'
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <h1 
+                  className="text-2xl font-medium text-slate-900 cursor-pointer hover:text-slate-700 hover:bg-slate-100/60 transition-all duration-200 rounded-sm inline-block"
+                  onClick={() => {
+                    setIsEditingTitle(true)
+                    setEditedTitle(recording.title)
+                  }}
+                  title="클릭하여 수정"
+                >
+                  {recording.title}
+                </h1>
+              )}
+          <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{new Date(recording.created_at).toLocaleString('ko-KR', {
+                  year: 'numeric',
+                  weekday: 'short',
+                  month: 'numeric', 
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}</span>
               </div>
-            </div>
+            {recording.duration && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="text-sm text-slate-500">
+                  {formatDuration(recording.duration)}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

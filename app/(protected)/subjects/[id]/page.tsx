@@ -83,22 +83,24 @@ export default function SubjectPage({ params }: SubjectPageProps) {
   return (
     <div className="flex-1 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{subject.name}</h1>
-            <p className="text-gray-600 mt-1">
-              전체 기록 {recordings.length}개
-            </p>
-          </div>
+      <div className="relative bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-200/60 shadow-sm">
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-medium text-slate-900">{subject.name}</h1>
+              <p className="text-sm text-slate-500 mt-2">
+                전체 기록 {recordings.length}개
+              </p>
+            </div>
 
-          <Button 
-            onClick={() => router.push(`/subjects/${subjectId}/record`)}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-          >
-            <Mic className="w-4 h-4 mr-2" />
-            새 기록 시작
-          </Button>
+            <Button 
+              onClick={() => router.push(`/subjects/${subjectId}/record`)}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              <Mic className="w-4 h-4 mr-2" />
+              새 기록 시작
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -138,7 +140,15 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                         <p className="font-medium text-gray-900">{recording.title}</p>
                         <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                           <span>{recording.duration ? `${Math.floor(recording.duration / 60)}분` : '처리중'}</span>
-                          <span>{new Date(recording.created_at).toLocaleDateString('ko-KR')}</span>
+                          <span>{new Date(recording.created_at).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            weekday: 'short',
+                            month: 'numeric', 
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}</span>
                           <span>{recording.audio_url ? '업로드 완료' : '업로드 중'}</span>
                         </div>
                       </div>

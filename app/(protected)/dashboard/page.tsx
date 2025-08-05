@@ -55,7 +55,15 @@ export default function DashboardPage() {
       type: 'recording' as const,
       subjectName: subjects.find(s => s.id === rec.subject_id)?.name || '알 수 없음',
       title: rec.title,
-      date: new Date(rec.created_at).toLocaleDateString('ko-KR'),
+      date: new Date(rec.created_at).toLocaleString('ko-KR', {
+        year: 'numeric',
+        weekday: 'short',
+        month: 'numeric', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }),
       duration: rec.duration ? `${Math.floor(rec.duration / 60)}분` : '처리중'
     }))
 

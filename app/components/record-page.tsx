@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Play, Pause, RotateCcw, Upload, FileText, Mic, CheckCircle2, ChevronLeft, ChevronRight, Clock, Edit, X, Square } from 'lucide-react'
+import { Play, Pause, RotateCcw, Upload, FileText, Mic, CheckCircle2, ChevronLeft, ChevronRight, Clock, Edit, X, Square, ArrowLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { recordings as recordingsDb, recordEntries, storage } from '@/lib/database'
@@ -394,31 +394,47 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
     <>
       <div className="flex-1 flex flex-col bg-gray-50">
         {/* Header with Recording Title */}
-        <div className="bg-white border-b px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Mic className="w-5 h-5 text-purple-600" />
-            {isEditingTitle ? (
-              <Input
-                value={recordingTitle}
-                onChange={(e) => setRecordingTitle(e.target.value)}
-                onBlur={() => setIsEditingTitle(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setIsEditingTitle(false)
-                  }
-                }}
-                className="text-xl font-semibold max-w-md"
-                autoFocus
-              />
-            ) : (
-              <h1
-                className="text-xl font-semibold cursor-pointer hover:text-purple-600 transition-colors"
-                onClick={() => setIsEditingTitle(true)}
-                title="클릭하여 수정"
-              >
-                {recordingTitle}
-              </h1>
-            )}
+        <div className="relative bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-200/60 shadow-sm">
+          <div className="px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                {isEditingTitle ? (
+                  <Input
+                    value={recordingTitle}
+                    onChange={(e) => setRecordingTitle(e.target.value)}
+                    onBlur={() => setIsEditingTitle(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setIsEditingTitle(false)
+                      }
+                    }}
+                    className="w-auto min-w-0 max-w-fit h-auto bg-transparent border-0 p-0 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 shadow-none"
+                    style={{ 
+                      fontSize: '1.25rem',
+                      fontWeight: '500',
+                      lineHeight: '1.75rem',
+                      color: 'rgb(15 23 42)',
+                      fontFamily: 'inherit'
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <h1
+                    className="text-xl font-medium cursor-pointer text-slate-900 hover:text-slate-700 hover:bg-slate-100/60 transition-all duration-200 rounded-sm inline-block"
+                    onClick={() => setIsEditingTitle(true)}
+                    title="클릭하여 수정"
+                  >
+                    {recordingTitle}
+                  </h1>
+                )}
+              </div>
+              {isRecording && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-red-600">녹음 중</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
