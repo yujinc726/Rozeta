@@ -147,6 +147,8 @@ export interface Recording {
   created_at: string
   updated_at: string
   user_id: string
+  ai_lecture_overview?: any
+  ai_analyzed_at?: string
 }
 
 export interface RecordEntry {
@@ -158,4 +160,7 @@ export interface RecordEntry {
   end_time: string
   memo?: string
   created_at: string
+  ai_explanation?: any
+  ai_generated_at?: string
+  ai_model?: string
 } 

@@ -8,15 +8,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Save, X, Play, Pause, Wand2, FileAudio, Brain, AlertCircle, FileText, Clock, Download, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Edit, Save, X, Play, Pause, Wand2, FileAudio, Brain, AlertCircle, FileText, Clock, Download, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 import { toast } from "sonner"
 import { recordEntries, recordings } from "@/lib/database"
 import type { Recording as DbRecording, RecordEntry } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import WhisperProcessor from "./whisper-processor"
 import { extractTranscriptBySlides, getCurrentSubtitle } from "@/lib/transcript-utils"
 import { useSidebarContext } from "@/app/contexts/sidebar-context"
+import { SlideAIExplanation } from "./ai-explanation"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface RecordDetailProps {
   recording: DbRecording
@@ -49,6 +52,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState(recording.title)
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [aiOverview, setAiOverview] = useState<any>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const animationRef = useRef<number | null>(null)
 
@@ -158,7 +163,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       // PDF에서 슬라이드 이미지 가져오기 (TODO: 실제 PDF 렌더링 구현 필요)
       loadSlideImage(currentSlide)
     }
-  }, [currentTime, recordEntriesList])
+  }, [currentTime, recordEntriesList, currentEntry?.id])
 
   // 시간 문자열을 초 단위로 변환
   const parseTimeToSeconds = (timeStr: string): number => {
@@ -264,11 +269,84 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
     try {
       const entries = await recordEntries.getByRecordingId(recording.id)
       setRecordEntriesList(entries)
+      
+      // 첫 번째 슬라이드를 현재 슬라이드로 설정
+      if (entries.length > 0 && !currentEntry) {
+        setCurrentEntry(entries[0])
+        loadSlideImage(entries[0])
+      }
+      
+      // AI 설명이 이미 있는지 확인
+      if (recording.ai_lecture_overview) {
+        setAiOverview(recording.ai_lecture_overview)
+      }
     } catch (error) {
       console.error('Failed to load record entries:', error)
       toast.error('슬라이드 기록을 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // AI 설명 생성/재생성 함수
+  const generateAIExplanations = async (regenerate = false) => {
+    try {
+      setIsGeneratingAI(true)
+      
+      // 사용자 인증 정보 가져오기
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        throw new Error('로그인이 필요합니다.')
+      }
+      
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          recordingId: recording.id,
+          regenerate
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'AI 분석 실패')
+      }
+
+      const data = await response.json()
+      
+      if (data.success) {
+        // 업데이트된 엔트리 목록 갱신
+        setRecordEntriesList(data.entries)
+        setAiOverview(data.overview)
+        
+        // recording 객체도 업데이트
+        if (data.overview) {
+          recording.ai_lecture_overview = data.overview
+        }
+        
+        // currentEntry도 업데이트 (현재 보고 있는 슬라이드의 AI 설명이 보이도록)
+        if (currentEntry && data.entries) {
+          const updatedCurrentEntry = data.entries.find(e => e.id === currentEntry.id)
+          if (updatedCurrentEntry) {
+            setCurrentEntry(updatedCurrentEntry)
+          }
+        }
+        
+        toast.success('AI 분석이 완료되었습니다!')
+      }
+    } catch (error) {
+      console.error('AI generation error:', error)
+      if (error instanceof Error && error.message.includes('GOOGLE_GEMINI_API_KEY')) {
+        toast.error('Gemini API 키가 설정되지 않았습니다. .env.local 파일에 GOOGLE_GEMINI_API_KEY를 추가해주세요.')
+      } else {
+        toast.error(error instanceof Error ? error.message : 'AI 분석 중 오류가 발생했습니다.')
+      }
+    } finally {
+      setIsGeneratingAI(false)
     }
   }
 
@@ -487,7 +565,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   }
 
   const hasTranscript = recording.transcript !== null && recording.transcript !== undefined
-  const hasSummary = recording.summary !== null && recording.summary !== undefined
+  const hasAIAnalysis = recordEntriesList.some(entry => 
+    entry.ai_explanation && Object.keys(entry.ai_explanation).length > 0
+  )
 
   // PDF URLs 파싱
   const pdfUrls = recording.pdf_url ? recording.pdf_url.split(',') : []
@@ -606,21 +686,21 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           </Card>
 
           {/* AI 설명 카드 */}
-          <Card className={hasSummary ? "border-purple-200 bg-purple-50" : "border-gray-200"}>
+          <Card className={hasAIAnalysis ? "border-purple-200 bg-purple-50" : "border-gray-200"}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg ${hasSummary ? "bg-purple-100" : "bg-gray-100"}`}>
-                    <Brain className={`w-6 h-6 ${hasSummary ? "text-purple-600" : "text-gray-400"}`} />
+                  <div className={`p-3 rounded-lg ${hasAIAnalysis ? "bg-purple-100" : "bg-gray-100"}`}>
+                    <Brain className={`w-6 h-6 ${hasAIAnalysis ? "text-purple-600" : "text-gray-400"}`} />
                   </div>
                   <div>
                     <CardTitle className="text-lg">AI 강의 설명</CardTitle>
                     <CardDescription>
-                      {hasSummary ? "분석 완료" : hasTranscript ? "분석 가능" : "텍스트 변환 필요"}
+                      {hasAIAnalysis ? "분석 완료" : hasTranscript ? "분석 가능" : "텍스트 변환 필요"}
                     </CardDescription>
                   </div>
                 </div>
-                {hasSummary ? (
+                {hasAIAnalysis ? (
                   <Badge className="bg-purple-600">완료</Badge>
                 ) : hasTranscript ? (
                   <Badge variant="secondary">준비됨</Badge>
@@ -630,17 +710,22 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               </div>
             </CardHeader>
             <CardContent>
-              {hasSummary ? (
+              {hasAIAnalysis ? (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-700">
                     AI가 강의 내용을 분석했습니다. 슬라이드별 설명을 확인하세요.
                   </p>
                   <Button 
-                    onClick={onOpenAIExplanation}
+                    onClick={() => generateAIExplanations(false)}
                     className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    disabled={isGeneratingAI}
                   >
-                    <Brain className="w-4 h-4 mr-2" />
-                    AI 설명 보기
+                    {isGeneratingAI ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Brain className="w-4 h-4 mr-2" />
+                    )}
+                    {isGeneratingAI ? 'AI 분석 중...' : 'AI 설명 보기'}
                   </Button>
                 </div>
               ) : hasTranscript ? (
@@ -649,12 +734,17 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     텍스트 변환이 완료되어 AI 분석을 시작할 수 있습니다.
                   </p>
                   <Button 
-                    onClick={onOpenAIExplanation}
+                    onClick={() => generateAIExplanations(false)}
                     variant="outline"
                     className="w-full"
+                    disabled={isGeneratingAI}
                   >
-                    <Brain className="w-4 h-4 mr-2" />
-                    AI 분석 시작하기
+                    {isGeneratingAI ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Brain className="w-4 h-4 mr-2" />
+                    )}
+                    {isGeneratingAI ? 'AI 분석 중...' : 'AI 분석 시작하기'}
                   </Button>
                 </div>
               ) : (
@@ -781,6 +871,21 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   )}
                 </div>
               </div>
+              
+              {/* AI 설명 표시 */}
+              {currentEntry && (
+                <div className="mt-4">
+                  {console.log('Current entry AI explanation:', currentEntry.ai_explanation)}
+                  {console.log('Is generating:', isGeneratingAI)}
+                  <SlideAIExplanation
+                    explanation={currentEntry.ai_explanation}
+                    slideNumber={currentEntry.slide_number}
+                    isGenerating={isGeneratingAI}
+                    generatedAt={currentEntry.ai_generated_at}
+                    onRegenerate={() => generateAIExplanations(true)}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -1017,6 +1122,21 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                               </div>
                                 <div className="absolute bottom-2 right-2 text-lg opacity-20 text-purple-400 rotate-180">"</div>
                             </div>
+                            </div>
+                          )}
+                          
+                          {/* AI 설명 표시 배지 */}
+                          {entry.ai_explanation && Object.keys(entry.ai_explanation).length > 0 && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0">
+                                <Brain className="w-3 h-3 mr-1" />
+                                AI 설명 생성됨
+                              </Badge>
+                              {entry.ai_generated_at && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(entry.ai_generated_at).toLocaleTimeString('ko-KR')}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
