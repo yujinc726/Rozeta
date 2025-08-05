@@ -1119,7 +1119,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   </p>
                   {currentEntry && (
                     <p className="text-xs text-gray-500 truncate">
-                      슬라이드 {currentEntry.slide_number} {currentEntry.memo && `• ${currentEntry.memo}`}
+                      슬라이드 {currentEntry.slide_number}
                     </p>
                   )}
                 </div>
