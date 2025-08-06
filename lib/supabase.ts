@@ -149,6 +149,8 @@ export interface Recording {
   user_id: string
   ai_lecture_overview?: any
   ai_analyzed_at?: string
+  file_size_bytes?: number
+  pdf_size_bytes?: number
 }
 
 export interface RecordEntry {
@@ -163,4 +165,76 @@ export interface RecordEntry {
   ai_explanation?: any
   ai_generated_at?: string
   ai_model?: string
+}
+
+// 구독 플랜 인터페이스
+export interface SubscriptionPlan {
+  id: string
+  name: string
+  display_name: string
+  storage_gb: number
+  ai_minutes_per_month: number | null // null means unlimited
+  price_krw: number
+  features: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// 사용자 구독 인터페이스
+export interface UserSubscription {
+  id: string
+  user_id: string
+  plan_id: string
+  status: 'active' | 'cancelled' | 'expired' | 'trial'
+  started_at: string
+  expires_at: string | null
+  storage_used_bytes: number
+  ai_minutes_used: number
+  billing_cycle_start: string
+  billing_cycle_end: string
+  created_at: string
+  updated_at: string
+  plan?: SubscriptionPlan // 조인된 플랜 정보
+}
+
+// 사용량 로그 인터페이스
+export interface UsageLog {
+  id: string
+  user_id: string
+  type: 'storage' | 'ai_minutes' | 'api_calls'
+  amount: number
+  metadata?: any
+  recorded_at: string
+}
+
+// 결제 방법 인터페이스
+export interface PaymentMethod {
+  id: string
+  user_id: string
+  type: 'card' | 'bank_transfer' | 'paypal'
+  last_four?: string
+  expires_at?: string
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+// 사용량 요약 인터페이스
+export interface UsageSummary {
+  user_id: string
+  email: string
+  plan_id: string
+  plan_name: string
+  plan_display_name: string
+  plan_storage_gb: number
+  plan_ai_minutes: number | null
+  storage_used_bytes: number
+  ai_minutes_used: number
+  billing_cycle_start: string
+  billing_cycle_end: string
+  subscription_status: string
+  storage_used_gb: number
+  storage_used_percent: number
+  ai_minutes_used_percent: number
 } 

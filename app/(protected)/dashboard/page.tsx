@@ -2,38 +2,103 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import HomeDashboard from "@/app/components/home-dashboard"
 import { auth } from "@/lib/supabase"
-import { subjects as subjectsDb, recordings as recordingsDb } from "@/lib/database"
-import type { Subject as DbSubject, Recording as DbRecording } from "@/lib/supabase"
+import { 
+  subjects as subjectsDb, 
+  recordings as recordingsDb,
+  subscriptionPlans,
+  userSubscriptions,
+  usageSummary
+} from "@/lib/database"
+import type { 
+  Subject as DbSubject, 
+  Recording as DbRecording,
+  SubscriptionPlan,
+  UserSubscription
+} from "@/lib/supabase"
+import UsageTracker from "@/app/components/usage-tracker"
+import SubscriptionPlansModal from "@/app/components/subscription-plans-modal"
+import RecentRecordings from "@/app/components/recent-recordings"
+import DashboardStats from "@/app/components/dashboard-stats"
+
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { 
+  Sparkles, 
+  AlertCircle,
+  Users,
+  Shield,
+  Lightbulb
+} from "lucide-react"
 
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [subjects, setSubjects] = useState<DbSubject[]>([])
   const [recordings, setRecordings] = useState<DbRecording[]>([])
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null)
+  const [storageUsed, setStorageUsed] = useState(0)
+  const [aiMinutesUsed, setAiMinutesUsed] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [showPlansModal, setShowPlansModal] = useState(false)
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await auth.getUser()
-      if (!user) {
-        router.push('/auth')
-        return
+    const loadDashboardData = async () => {
+      try {
+        // 인증 확인
+        const { data: { user } } = await auth.getUser()
+        if (!user) {
+          router.push('/auth')
+          return
+        }
+        setUser(user)
+        
+        // 병렬로 데이터 로드
+        const [subs, recs, availablePlans, userSub] = await Promise.all([
+          subjectsDb.list(user.id),
+          recordingsDb.listAll(user.id),
+          subscriptionPlans.getAll(),
+          userSubscriptions.getCurrent()
+        ])
+        
+        setSubjects(subs)
+        setRecordings(recs)
+        setPlans(availablePlans)
+        setSubscription(userSub)
+        
+        console.log('대시보드 데이터:', {
+          subjects: subs.length,
+          recordings: recs.length,
+          plans: availablePlans.length,
+          subscription: userSub
+        })
+
+        // 사용량 계산
+        try {
+          const [storage, aiMinutes] = await Promise.all([
+            usageSummary.calculateStorageUsage(),
+            usageSummary.calculateAIMinutesUsage()
+          ])
+          
+          setStorageUsed(storage)
+          setAiMinutesUsed(aiMinutes)
+        } catch (usageError) {
+          console.error('사용량 계산 에러:', usageError)
+          // 기본값 사용
+          setStorageUsed(0)
+          setAiMinutesUsed(0)
+        }
+        
+      } catch (error) {
+        console.error('대시보드 데이터 로드 실패:', error)
+      } finally {
+        setIsLoading(false)
       }
-      setUser(user)
-      
-      // Load subjects and recordings
-      const subs = await subjectsDb.list(user.id)
-      setSubjects(subs)
-      
-      const recs = await recordingsDb.listAll(user.id)
-      setRecordings(recs)
-      
-      setIsLoading(false)
     }
     
-    checkAuth()
+    loadDashboardData()
   }, [router])
 
   if (isLoading) {
@@ -41,75 +106,142 @@ export default function DashboardPage() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">로딩 중...</p>
+          <p className="text-gray-600">대시보드 로딩 중...</p>
         </div>
       </div>
     )
   }
 
-  const recentActivities = recordings
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5)
-    .map(rec => ({
-      id: rec.id,
-      type: 'recording' as const,
-      subjectName: subjects.find(s => s.id === rec.subject_id)?.name || '알 수 없음',
-      title: rec.title,
-      date: new Date(rec.created_at).toLocaleString('ko-KR', {
-        year: 'numeric',
-        weekday: 'short',
-        month: 'numeric', 
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }),
-      duration: rec.duration ? `${Math.floor(rec.duration / 60)}분` : '처리중'
-    }))
+  const handlePlayRecording = (recording: DbRecording) => {
+    const subject = subjects.find(s => s.id === recording.subject_id)
+    if (subject) {
+      router.push(`/subjects/${subject.id}/recordings/${recording.id}`)
+    }
+  }
 
-  const weeklyProgress = [
-    { day: '월', hours: 2 },
-    { day: '화', hours: 3 },
-    { day: '수', hours: 1 },
-    { day: '목', hours: 4 },
-    { day: '금', hours: 2 },
-    { day: '토', hours: 5 },
-    { day: '일', hours: 3 },
-  ]
+  const handleSelectPlan = (plan: SubscriptionPlan) => {
+    // TODO: 결제 프로세스 구현
+    alert(`${plan.display_name} 플랜 선택 - 결제 기능 구현 예정`)
+  }
 
-  const totalSeconds = recordings.reduce((acc, rec) => acc + (rec.duration || 0), 0)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+
+  // 사용량 경고 체크
+  const storagePercent = subscription?.plan ? 
+    (storageUsed / (subscription.plan.storage_gb * 1024 * 1024 * 1024)) * 100 : 
+    (storageUsed / (1024 * 1024 * 1024)) * 100 // 무료 플랜 1GB 기본값
+
+  const aiMinutesPercent = subscription?.plan?.ai_minutes_per_month ? 
+    (aiMinutesUsed / subscription.plan.ai_minutes_per_month) * 100 : 
+    (aiMinutesUsed / 60) * 100 // 무료 플랜 60분 기본값
+
+  const hasWarning = storagePercent > 80 || aiMinutesPercent > 80
 
   return (
-    <HomeDashboard
-      userName={user?.email?.split('@')[0] || "사용자"}
-      totalSubjects={subjects.length}
-      totalRecordings={recordings.length}
-      totalStudyTime={`${hours}시간 ${minutes}분`}
-      recentActivities={recentActivities}
-      weeklyProgress={weeklyProgress}
-      onStartRecording={() => {
-        if (subjects.length === 0) {
-          alert('먼저 과목을 추가해주세요.')
-          router.push('/subjects')
-          return
-        }
-        // 첫 번째 과목으로 이동
-        router.push(`/subjects/${subjects[0].id}/record`)
-      }}
-      onViewRecentNote={() => {
-        if (recordings.length > 0) {
-          const subject = subjects.find(s => s.id === recordings[0].subject_id)
-          if (subject) {
-            router.push(`/subjects/${subject.id}/recordings/${recordings[0].id}`)
-          }
-        }
-      }}
-      onViewAIAnalysis={() => {
-        // TODO: AI 분석 페이지 구현
-        alert('AI 분석 기능은 준비 중입니다.')
-      }}
-    />
+    <div className="px-6 py-6 space-y-6">
+      {/* 환영 메시지 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">
+            안녕하세요, {user?.email?.split('@')[0]}님! 👋
+          </h1>
+          <p className="text-gray-600 mt-1">오늘도 열심히 공부해봐요</p>
+        </div>
+        
+        {/* 현재 플랜 표시 */}
+        <div className="text-right">
+          <div className="text-sm text-gray-500">현재 플랜</div>
+          <div className="font-semibold text-lg">
+            {subscription?.plan?.display_name || 'Free'}
+          </div>
+        </div>
+      </div>
+
+      {/* 경고 알림 */}
+      {hasWarning && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800">
+            <span className="font-semibold">사용량 주의:</span> 
+            {storagePercent > 80 && ' 저장 공간이 부족합니다.'}
+            {aiMinutesPercent > 80 && ' AI 변환 시간이 얼마 남지 않았습니다.'}
+            <Button 
+              variant="link" 
+              className="text-orange-600 p-0 ml-2 h-auto"
+              onClick={() => setShowPlansModal(true)}
+            >
+              플랜 업그레이드 →
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* 대시보드 통계 */}
+      <DashboardStats subjects={subjects} recordings={recordings} />
+
+      {/* 메인 콘텐츠 그리드 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 왼쪽: 사용량 트래커 */}
+        <div className="lg:col-span-1">
+          <UsageTracker
+            subscription={subscription}
+            storageUsed={storageUsed}
+            aiMinutesUsed={aiMinutesUsed}
+            onUpgrade={() => setShowPlansModal(true)}
+            onViewDetails={() => router.push('/settings')}
+          />
+        </div>
+
+        {/* 오른쪽: 최근 강의 */}
+        <div className="lg:col-span-2">
+          <RecentRecordings
+            recordings={recordings}
+            subjects={subjects}
+            onPlayRecording={handlePlayRecording}
+            onViewAll={() => router.push('/subjects')}
+          />
+        </div>
+      </div>
+
+      {/* 학습 팁 카드 */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Lightbulb className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold mb-2">💡 학습 팁</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                더 효과적인 학습을 위한 Rozeta 활용법을 알아보세요.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div className="flex items-center gap-2 p-2 bg-white/60 rounded">
+                  <Sparkles className="h-4 w-4 text-blue-600" />
+                  <span>AI 설명 기능으로 복습 효과 극대화</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-white/60 rounded">
+                  <Shield className="h-4 w-4 text-green-600" />
+                  <span>클라우드 저장으로 언제 어디서나 접근</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-white/60 rounded">
+                  <Users className="h-4 w-4 text-purple-600" />
+                  <span>과목별 체계적인 학습 관리</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 구독 플랜 모달 */}
+      <SubscriptionPlansModal
+        isOpen={showPlansModal}
+        onClose={() => setShowPlansModal(false)}
+        plans={plans}
+        currentPlanId={subscription?.plan_id}
+        onSelectPlan={handleSelectPlan}
+      />
+    </div>
   )
 }

@@ -8,7 +8,20 @@ import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Mic, FileAudio, MoreHorizontal, Edit2, Trash2 } from "lucide-react"
+import { 
+  Mic, 
+  FileAudio, 
+  MoreHorizontal, 
+  Edit2, 
+  Trash2,
+  Clock,
+  Calendar,
+  HardDrive,
+  Sparkles,
+  Loader2,
+  CheckCircle
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { subjects as subjectsDb, recordings as recordingsDb } from "@/lib/database"
 import type { Subject as DbSubject, Recording as DbRecording } from "@/lib/supabase"
 import { auth } from "@/lib/supabase"
@@ -127,6 +140,28 @@ export default function SubjectPage({ params }: SubjectPageProps) {
     }
   }
 
+  // AI 상태 확인 함수 (홈 화면과 동일)
+  const getAIStatus = (recording: DbRecording) => {
+    if (recording.ai_analyzed_at) {
+      return { icon: CheckCircle, text: 'AI 완료', color: 'text-green-600 bg-green-50' }
+    }
+    if (recording.subtitles) {
+      return { icon: Sparkles, text: 'AI 대기', color: 'text-purple-600 bg-purple-50' }
+    }
+    if (recording.transcript) {
+      return { icon: Loader2, text: '처리 중', color: 'text-blue-600 bg-blue-50' }
+    }
+    return { icon: Clock, text: '미처리', color: 'text-gray-600 bg-gray-50' }
+  }
+
+  // 파일 크기 계산 함수 (홈 화면과 동일)
+  const getFileSize = (recording: DbRecording) => {
+    const bytes = recording.file_size_bytes || 0
+    if (bytes === 0) return '계산 중'
+    const mb = (bytes / (1024 * 1024)).toFixed(1)
+    return `${mb}MB`
+  }
+
   return (
     <div className="flex-1 flex flex-col">
       {/* Header */}
@@ -173,133 +208,158 @@ export default function SubjectPage({ params }: SubjectPageProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {recordings.map((recording) => (
-                  <div
-                    key={recording.id}
-                    onClick={() => router.push(`/subjects/${subjectId}/recordings/${recording.id}`)}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <FileAudio className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{recording.title}</p>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                          <span>{recording.duration ? `${Math.floor(recording.duration / 60)}분` : '처리중'}</span>
-                          <span>{new Date(recording.created_at).toLocaleString('ko-KR', {
-                            year: 'numeric',
-                            weekday: 'short',
-                            month: 'numeric', 
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })}</span>
+                {recordings.map((recording) => {
+                  const aiStatus = getAIStatus(recording)
+                  const IconComponent = aiStatus.icon
+                  
+                  return (
+                    <div
+                      key={recording.id}
+                      className="group p-4 rounded-lg border hover:border-purple-300 hover:bg-purple-50/30 transition-all cursor-pointer"
+                      onClick={() => router.push(`/subjects/${subjectId}/recordings/${recording.id}`)}
+                    >
+                                              <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium group-hover:text-purple-600 transition-colors">
+                            {recording.title}
+                          </h4>
+                          <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(recording.created_at).toLocaleString('ko-KR', {
+                                year: 'numeric',
+                                weekday: 'short',
+                                month: 'numeric', 
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {recording.duration ? `${Math.floor(recording.duration / 60)}분` : '처리중'}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <HardDrive className="h-3 w-3" />
+                              {getFileSize(recording)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="secondary"
+                            className={`${aiStatus.color} border-0`}
+                          >
+                            <IconComponent className={`h-3 w-3 mr-1 ${
+                              aiStatus.text === '처리 중' ? 'animate-spin' : ''
+                            }`} />
+                            {aiStatus.text}
+                          </Badge>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="hover:bg-gray-200"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+                                  <DialogTrigger asChild>
+                                    <DropdownMenuItem 
+                                      onSelect={(e) => {
+                                        e.preventDefault()
+                                        setEditingRecording(recording)
+                                        setNewTitle(recording.title)
+                                        setIsRenameDialogOpen(true)
+                                      }}
+                                    >
+                                      <Edit2 className="w-4 h-4 mr-2" />
+                                      이름 변경
+                                    </DropdownMenuItem>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>기록 이름 변경</DialogTitle>
+                                      <DialogDescription>
+                                        새로운 이름을 입력하세요.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="py-4">
+                                      <Input
+                                        value={newTitle}
+                                        onChange={(e) => setNewTitle(e.target.value)}
+                                        placeholder="새 이름을 입력하세요"
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            handleRenameRecording()
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <Button 
+                                        variant="outline" 
+                                        onClick={() => {
+                                          setEditingRecording(null)
+                                          setNewTitle('')
+                                          setIsRenameDialogOpen(false)
+                                        }}
+                                      >
+                                        취소
+                                      </Button>
+                                      <Button 
+                                        onClick={handleRenameRecording}
+                                        disabled={isRenaming || !newTitle.trim()}
+                                      >
+                                        {isRenaming ? '변경 중...' : '변경'}
+                                      </Button>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                                
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem 
+                                      onSelect={(e) => e.preventDefault()}
+                                      className="text-red-600 focus:text-red-600"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      기록 삭제
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>기록 삭제</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        '{recording.title}' 기록을 삭제하시겠습니까?
+                                        이 작업은 되돌릴 수 없습니다.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>취소</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteRecording(recording)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                        disabled={isDeleting}
+                                      >
+                                        {isDeleting ? '삭제 중...' : '삭제'}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="hover:bg-gray-200"
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-                          <DialogTrigger asChild>
-                            <DropdownMenuItem 
-                              onSelect={(e) => {
-                                e.preventDefault()
-                                setEditingRecording(recording)
-                                setNewTitle(recording.title)
-                                setIsRenameDialogOpen(true)
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4 mr-2" />
-                              이름 변경
-                            </DropdownMenuItem>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>기록 이름 변경</DialogTitle>
-                              <DialogDescription>
-                                새로운 이름을 입력하세요.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4">
-                              <Input
-                                value={newTitle}
-                                onChange={(e) => setNewTitle(e.target.value)}
-                                placeholder="새 이름을 입력하세요"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleRenameRecording()
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <Button 
-                                variant="outline" 
-                                onClick={() => {
-                                  setEditingRecording(null)
-                                  setNewTitle('')
-                                  setIsRenameDialogOpen(false)
-                                }}
-                              >
-                                취소
-                              </Button>
-                              <Button 
-                                onClick={handleRenameRecording}
-                                disabled={isRenaming || !newTitle.trim()}
-                              >
-                                {isRenaming ? '변경 중...' : '변경'}
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                        
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem 
-                              onSelect={(e) => e.preventDefault()}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              기록 삭제
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>기록 삭제</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                '{recording.title}' 기록을 삭제하시겠습니까?
-                                이 작업은 되돌릴 수 없습니다.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>취소</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteRecording(recording)}
-                                className="bg-red-600 hover:bg-red-700"
-                                disabled={isDeleting}
-                              >
-                                {isDeleting ? '삭제 중...' : '삭제'}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>
