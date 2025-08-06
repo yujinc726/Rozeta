@@ -145,7 +145,7 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold">
             안녕하세요, {user?.email?.split('@')[0]}님! 👋
           </h1>
-          <p className="text-gray-600 mt-1">오늘도 열심히 공부해봐요</p>
+          <p className="text-gray-600 mt-1">오늘도 Rozeta와 함께 열심히 공부해봐요</p>
         </div>
         
         {/* 현재 플랜 표시 */}
