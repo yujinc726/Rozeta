@@ -366,9 +366,7 @@ export default function SharedSidebar({
         isCollapsed ? "p-2 flex justify-center" : "p-4"
       )}>
         {/* User Profile */}
-        <div className={cn(
-          isCollapsed ? "" : "mb-3 pb-3 border-b border-gray-100"
-        )}>
+        <div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               {isCollapsed ? (
