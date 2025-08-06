@@ -8,7 +8,8 @@ import {
   recordings as recordingsDb,
   subscriptionPlans,
   userSubscriptions,
-  usageSummary
+  usageSummary,
+  profiles
 } from "@/lib/database"
 import type { 
   Subject as DbSubject, 
@@ -35,6 +36,7 @@ import {
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [userName, setUserName] = useState<string>('사용자')
   const [subjects, setSubjects] = useState<DbSubject[]>([])
   const [recordings, setRecordings] = useState<DbRecording[]>([])
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
@@ -56,17 +58,19 @@ export default function DashboardPage() {
         setUser(user)
         
         // 병렬로 데이터 로드
-        const [subs, recs, availablePlans, userSub] = await Promise.all([
+        const [subs, recs, availablePlans, userSub, displayName] = await Promise.all([
           subjectsDb.list(user.id),
           recordingsDb.listAll(user.id),
           subscriptionPlans.getAll(),
-          userSubscriptions.getCurrent()
+          userSubscriptions.getCurrent(),
+          profiles.getDisplayName()
         ])
         
         setSubjects(subs)
         setRecordings(recs)
         setPlans(availablePlans)
         setSubscription(userSub)
+        setUserName(displayName)
         
         console.log('대시보드 데이터:', {
           subjects: subs.length,
@@ -143,7 +147,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between pr-4">
         <div>
           <h1 className="text-3xl font-bold">
-            안녕하세요, {user?.email?.split('@')[0]}님! 👋
+            안녕하세요, {userName}님! 👋
           </h1>
           <p className="text-gray-600 mt-1">오늘도 Rozeta와 함께 열심히 공부해봐요</p>
         </div>

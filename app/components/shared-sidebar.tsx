@@ -21,6 +21,7 @@ import {
 import { Plus, FileAudio, Folder, Settings, ArrowLeft, ChevronLeft, ChevronRight, Menu, MoreHorizontal, Edit, Trash2, Home, LogOut, User, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/supabase"
+import { profiles } from "@/lib/database"
 import {
   Tooltip,
   TooltipContent,
@@ -70,9 +71,18 @@ export default function SharedSidebar({
   const [editingSubject, setEditingSubject] = useState<{ id: string; name: string } | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<{ full_name: string | null, email: string } | null>(null)
 
   useEffect(() => {
-    auth.getUser().then(({ data: { user } }) => setUser(user))
+    const loadUserData = async () => {
+      const { data: { user } } = await auth.getUser()
+      setUser(user)
+      if (user) {
+        const profile = await profiles.getCurrent()
+        setUserProfile(profile)
+      }
+    }
+    loadUserData()
   }, [])
 
   const handleAddSubject = () => {
@@ -383,7 +393,7 @@ export default function SharedSidebar({
                   </TooltipTrigger>
                   <TooltipContent side="right" className="font-medium">
                     <div>
-                      <p>{user?.email?.split('@')[0] || '사용자'}</p>
+                      <p>{userProfile?.full_name || user?.email?.split('@')[0] || '사용자'}</p>
                       <p className="text-xs text-muted-foreground">{user?.email || ''}</p>
                     </div>
                   </TooltipContent>
@@ -398,7 +408,7 @@ export default function SharedSidebar({
                       <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <div className="text-sm font-medium truncate">{user?.email?.split('@')[0] || '사용자'}</div>
+                      <div className="text-sm font-medium truncate">{userProfile?.full_name || user?.email?.split('@')[0] || '사용자'}</div>
                       <div className="text-xs text-gray-500 truncate">{user?.email || ''}</div>
                     </div>
                     <MoreHorizontal className="w-4 h-4 text-gray-400 flex-shrink-0" />

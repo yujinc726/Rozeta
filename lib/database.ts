@@ -434,6 +434,55 @@ export const settingsDb = {
   }
 }
 
+// 프로필 관련 함수들
+export const profiles = {
+  // 현재 사용자의 프로필 정보 조회
+  async getCurrent(): Promise<{ full_name: string | null, email: string } | null> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+      
+      if (error) {
+        console.warn('프로필 정보를 가져올 수 없습니다:', error)
+        // profiles 테이블이 없거나 데이터가 없는 경우 기본값 반환
+        return {
+          full_name: null,
+          email: user.email || ''
+        }
+      }
+      
+      return {
+        full_name: data?.full_name || null,
+        email: user.email || ''
+      }
+    } catch (error) {
+      console.warn('프로필 조회 중 오류:', error)
+      return {
+        full_name: null,
+        email: user.email || ''
+      }
+    }
+  },
+
+  // 사용자 이름 표시 (full_name이 있으면 사용, 없으면 이메일 앞부분)
+  async getDisplayName(): Promise<string> {
+    const profile = await this.getCurrent()
+    if (!profile) return '사용자'
+    
+    if (profile.full_name && profile.full_name.trim()) {
+      return profile.full_name.trim()
+    }
+    
+    return profile.email?.split('@')[0] || '사용자'
+  }
+}
+
 // 구독 플랜 관련 함수들
 export const subscriptionPlans = {
   // 모든 활성 플랜 조회
