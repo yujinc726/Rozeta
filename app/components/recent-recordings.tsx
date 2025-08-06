@@ -9,7 +9,6 @@ import {
   Clock, 
   Calendar,
   FileText,
-  ChevronRight,
   Sparkles,
   Loader2,
   CheckCircle,
@@ -104,19 +103,7 @@ export default function RecentRecordings({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">최근 강의</CardTitle>
-          {onViewAll && recordings.length > 4 && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={onViewAll}
-            >
-              모두 보기
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        <CardTitle className="text-lg">최근 강의</CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-3">
