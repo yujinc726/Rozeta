@@ -21,6 +21,12 @@ import {
 import { Plus, FileAudio, Folder, Settings, ArrowLeft, ChevronLeft, ChevronRight, Menu, MoreHorizontal, Edit, Trash2, Home, LogOut, User, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/supabase"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface Subject {
   id: string
@@ -92,12 +98,16 @@ export default function SharedSidebar({
   }
 
   return (
-    <div className={cn(
-      "fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-50",
-      isCollapsed ? "w-16" : "w-80"
-    )}>
-      {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+    <TooltipProvider>
+      <div className={cn(
+        "fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-50",
+        isCollapsed ? "w-16" : "w-80"
+      )}>
+        {/* Header */}
+      <div className={cn(
+        "border-b border-gray-200",
+        isCollapsed ? "p-3 flex justify-center" : "p-6"
+      )}>
         <div 
           className={cn(
             "flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity",
@@ -126,23 +136,46 @@ export default function SharedSidebar({
 
       {/* Subjects List */}
       <ScrollArea className="flex-1">
-        <div className="p-4">
+        <div className={cn(isCollapsed ? "p-2" : "p-4")}>
           {/* Home Button */}
           {onNavigateHome && (
-            <Button
-              variant="ghost"
-              onClick={onNavigateHome}
-              className={cn(
-                "w-full mb-4",
-                isCollapsed ? "justify-center p-2" : "justify-start",
-                currentView === 'home' 
-                  ? "bg-purple-50 text-purple-700 hover:bg-purple-100" 
-                  : "hover:bg-gray-100"
+            <div className={cn("mb-4", isCollapsed && "flex justify-center")}>
+              {isCollapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      onClick={onNavigateHome}
+                      className={cn(
+                        "w-12 h-12 p-0 justify-center",
+                        currentView === 'home' 
+                          ? "bg-purple-50 text-purple-700 hover:bg-purple-100" 
+                          : "hover:bg-gray-100"
+                      )}
+                    >
+                      <Home className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    홈
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="ghost"
+                  onClick={onNavigateHome}
+                  className={cn(
+                    "w-full justify-start",
+                    currentView === 'home' 
+                      ? "bg-purple-50 text-purple-700 hover:bg-purple-100" 
+                      : "hover:bg-gray-100"
+                  )}
+                >
+                  <Home className="w-4 h-4" />
+                  <span className="ml-2">홈</span>
+                </Button>
               )}
-            >
-              <Home className="w-4 h-4" />
-              {!isCollapsed && <span className="ml-2">홈</span>}
-            </Button>
+            </div>
           )}
           
           {!isCollapsed && (
@@ -186,41 +219,66 @@ export default function SharedSidebar({
               <div
                 key={subject.id}
                 className={cn(
-                  "group relative w-full rounded-lg transition-all",
+                  "group relative rounded-lg transition-all mb-2",
                   selectedSubject?.id === subject.id
                     ? 'bg-purple-50 text-purple-700 font-medium'
                     : 'hover:bg-gray-50',
-                  isCollapsed ? "p-2" : "p-3"
+                  isCollapsed ? "flex justify-center" : "w-full"
                 )}
               >
-                <button
-                  onClick={() => onSelectSubject(subject)}
-                  className="w-full text-left"
-                  title={isCollapsed ? subject.name : undefined}
-                >
-                  <div className={cn(
-                    "flex items-center",
-                    isCollapsed ? "justify-center" : "gap-3"
-                  )}>
-                    <div className={cn(
-                      "rounded flex items-center justify-center flex-shrink-0",
-                      selectedSubject?.id === subject.id
-                        ? 'bg-purple-200'
-                        : 'bg-gray-100',
-                      isCollapsed ? "w-8 h-8" : "w-8 h-8"
-                    )}>
-                      <Folder className="w-4 h-4" />
-                    </div>
-                    {!isCollapsed && (
+                {isCollapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => onSelectSubject(subject)}
+                        className="w-12 h-12 p-0 rounded-lg flex items-center justify-center text-left"
+                      >
+                        <div className="flex items-center justify-center">
+                          <div className={cn(
+                            "rounded flex items-center justify-center flex-shrink-0",
+                            selectedSubject?.id === subject.id
+                              ? 'bg-purple-200'
+                              : 'bg-gray-100',
+                            "w-8 h-8"
+                          )}>
+                            <Folder className="w-4 h-4" />
+                          </div>
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      <div>
+                        <p>{subject.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          기록 {subject.recordingCount + subject.timerCount}개
+                        </p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <button
+                    onClick={() => onSelectSubject(subject)}
+                    className="w-full p-3 text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "rounded flex items-center justify-center flex-shrink-0",
+                        selectedSubject?.id === subject.id
+                          ? 'bg-purple-200'
+                          : 'bg-gray-100',
+                        "w-8 h-8"
+                      )}>
+                        <Folder className="w-4 h-4" />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{subject.name}</p>
                         <span className="text-xs text-gray-500">
                           기록 {subject.recordingCount + subject.timerCount}개
                         </span>
                       </div>
-                    )}
-                  </div>
-                </button>
+                    </div>
+                  </button>
+                )}
                 
                 {/* Options Menu - Only show when not collapsed and has edit/delete functions */}
                 {!isCollapsed && (onEditSubject || onDeleteSubject) && (
@@ -259,16 +317,24 @@ export default function SharedSidebar({
             ))}
 
             {isCollapsed && (
-              <button
-                onClick={() => {
-                  onToggleCollapse?.()
-                  setTimeout(() => setIsAddingSubject(true), 300)
-                }}
-                className="w-full p-2 hover:bg-gray-50 rounded-lg"
-                title="과목 추가"
-              >
-                <Plus className="w-4 h-4 mx-auto" />
-              </button>
+              <div className="flex justify-center">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        onToggleCollapse?.()
+                        setTimeout(() => setIsAddingSubject(true), 300)
+                      }}
+                      className="w-12 h-12 p-0 hover:bg-gray-50 rounded-lg flex items-center justify-center"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    과목 추가
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             )}
           </div>
         </div>
@@ -295,39 +361,52 @@ export default function SharedSidebar({
       )}
 
       {/* User Profile & Settings */}
-      <div className="p-4 border-t border-gray-200 relative">
+      <div className={cn(
+        "border-t border-gray-200 relative",
+        isCollapsed ? "p-2 flex justify-center" : "p-4"
+      )}>
         {/* User Profile */}
         <div className={cn(
-          "mb-3 pb-3 border-b border-gray-100",
-          isCollapsed && "border-0 mb-2 pb-0"
+          isCollapsed ? "" : "mb-3 pb-3 border-b border-gray-100"
         )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className={cn(
-                  "w-full hover:bg-gray-50",
-                  isCollapsed ? "justify-center p-2" : "justify-start px-3 py-2"
-                )}
-              >
-                <div className={cn(
-                  "flex items-center gap-3 w-full",
-                  isCollapsed && "justify-center"
-                )}>
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                  {!isCollapsed && (
-                    <>
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="text-sm font-medium truncate">{user?.email?.split('@')[0] || '사용자'}</div>
-                        <div className="text-xs text-gray-500 truncate">{user?.email || ''}</div>
+              {isCollapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-12 h-12 p-0 justify-center hover:bg-gray-50"
+                    >
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-white" />
                       </div>
-                      <MoreHorizontal className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    </>
-                  )}
-                </div>
-              </Button>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    <div>
+                      <p>{user?.email?.split('@')[0] || '사용자'}</p>
+                      <p className="text-xs text-muted-foreground">{user?.email || ''}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start px-3 py-2 hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="text-sm font-medium truncate">{user?.email?.split('@')[0] || '사용자'}</div>
+                      <div className="text-xs text-gray-500 truncate">{user?.email || ''}</div>
+                    </div>
+                    <MoreHorizontal className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  </div>
+                </Button>
+              )}
             </DropdownMenuTrigger>
             <DropdownMenuContent align={isCollapsed ? "center" : "end"} className="w-56">
               <DropdownMenuItem onClick={onOpenSettings}>
@@ -403,6 +482,7 @@ export default function SharedSidebar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   )
 } 

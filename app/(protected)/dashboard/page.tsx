@@ -154,7 +154,7 @@ export default function DashboardPage() {
             ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200/50' 
             : subscription?.plan?.name === 'standard'
             ? 'bg-blue-50 border-blue-200/50'
-            : 'bg-gray-50 border-gray-200/50'
+            : 'bg-green-50 border-green-200/50'
         }`}>
           <div className="text-center">
             <div className="text-xs text-gray-500 mb-1">현재 플랜</div>
@@ -163,7 +163,7 @@ export default function DashboardPage() {
                 ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600'
                 : subscription?.plan?.name === 'standard'
                 ? 'text-blue-600'
-                : 'text-gray-700'
+                : 'text-green-600'
             }`}>
               {subscription?.plan?.display_name || 'Free'}
             </div>
