@@ -4,8 +4,11 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Mic, FileAudio, Play } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Mic, FileAudio, MoreHorizontal, Edit2, Trash2 } from "lucide-react"
 import { subjects as subjectsDb, recordings as recordingsDb } from "@/lib/database"
 import type { Subject as DbSubject, Recording as DbRecording } from "@/lib/supabase"
 import { auth } from "@/lib/supabase"
@@ -22,7 +25,12 @@ export default function SubjectPage({ params }: SubjectPageProps) {
   const [subject, setSubject] = useState<DbSubject | null>(null)
   const [recordings, setRecordings] = useState<DbRecording[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [subjectId, setSubjectId] = useState<string>("")
+  const [subjectId, setSubjectId] = useState<string>("") 
+  const [editingRecording, setEditingRecording] = useState<DbRecording | null>(null)
+  const [newTitle, setNewTitle] = useState("")
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
 
   useEffect(() => {
     const loadSubjectData = async () => {
@@ -78,7 +86,46 @@ export default function SubjectPage({ params }: SubjectPageProps) {
     return null
   }
 
+  const handleRenameRecording = async () => {
+    if (!editingRecording || !newTitle.trim()) return
+    
+    try {
+      setIsRenaming(true)
+      await recordingsDb.update(editingRecording.id, { title: newTitle.trim() })
+      
+      // Update local state
+      setRecordings(prev => 
+        prev.map(r => r.id === editingRecording.id ? { ...r, title: newTitle.trim() } : r)
+      )
+      
+      toast.success('기록 이름이 변경되었습니다.')
+      setEditingRecording(null)
+      setNewTitle('')
+      setIsRenameDialogOpen(false)
+    } catch (error) {
+      console.error('Error renaming recording:', error)
+      toast.error('이름 변경 중 오류가 발생했습니다.')
+    } finally {
+      setIsRenaming(false)
+    }
+  }
 
+  const handleDeleteRecording = async (recording: DbRecording) => {
+    try {
+      setIsDeleting(true)
+      await recordingsDb.delete(recording.id)
+      
+      // Update local state
+      setRecordings(prev => prev.filter(r => r.id !== recording.id))
+      
+      toast.success('기록이 삭제되었습니다.')
+    } catch (error) {
+      console.error('Error deleting recording:', error)
+      toast.error('기록 삭제 중 오류가 발생했습니다.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div className="flex-1 flex flex-col">
@@ -149,21 +196,107 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                             minute: '2-digit',
                             hour12: true
                           })}</span>
-                          <span>{recording.audio_url ? '업로드 완료' : '업로드 중'}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-green-50 text-green-700 border-green-200">
-                        {recording.transcript ? '처리 완료' : '미처리'}
-                      </Badge>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Play className="w-4 h-4" />
-                      </Button>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="hover:bg-gray-200"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+                          <DialogTrigger asChild>
+                            <DropdownMenuItem 
+                              onSelect={(e) => {
+                                e.preventDefault()
+                                setEditingRecording(recording)
+                                setNewTitle(recording.title)
+                                setIsRenameDialogOpen(true)
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4 mr-2" />
+                              이름 변경
+                            </DropdownMenuItem>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>기록 이름 변경</DialogTitle>
+                              <DialogDescription>
+                                새로운 이름을 입력하세요.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                              <Input
+                                value={newTitle}
+                                onChange={(e) => setNewTitle(e.target.value)}
+                                placeholder="새 이름을 입력하세요"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleRenameRecording()
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  setEditingRecording(null)
+                                  setNewTitle('')
+                                  setIsRenameDialogOpen(false)
+                                }}
+                              >
+                                취소
+                              </Button>
+                              <Button 
+                                onClick={handleRenameRecording}
+                                disabled={isRenaming || !newTitle.trim()}
+                              >
+                                {isRenaming ? '변경 중...' : '변경'}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem 
+                              onSelect={(e) => e.preventDefault()}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              기록 삭제
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>기록 삭제</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                '{recording.title}' 기록을 삭제하시겠습니까?
+                                이 작업은 되돌릴 수 없습니다.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>취소</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteRecording(recording)}
+                                className="bg-red-600 hover:bg-red-700"
+                                disabled={isDeleting}
+                              >
+                                {isDeleting ? '삭제 중...' : '삭제'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     </div>
                   </div>
                 ))}
