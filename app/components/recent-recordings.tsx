@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Play, 
   Clock, 
   Calendar,
   FileText,
@@ -155,17 +154,7 @@ export default function RecentRecordings({
                   </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onPlayRecording?.(recording)
-                  }}
-                >
-                  <Play className="h-4 w-4" />
-                </Button>
+
               </div>
             </div>
           )

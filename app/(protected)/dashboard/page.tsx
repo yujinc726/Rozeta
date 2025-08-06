@@ -140,7 +140,7 @@ export default function DashboardPage() {
   return (
     <div className="px-6 py-6 space-y-6">
       {/* 환영 메시지 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pr-4">
         <div>
           <h1 className="text-3xl font-bold">
             안녕하세요, {user?.email?.split('@')[0]}님! 👋
@@ -149,10 +149,24 @@ export default function DashboardPage() {
         </div>
         
         {/* 현재 플랜 표시 */}
-        <div className="text-right">
-          <div className="text-sm text-gray-500">현재 플랜</div>
-          <div className="font-semibold text-lg">
-            {subscription?.plan?.display_name || 'Free'}
+        <div className={`px-4 py-3 rounded-xl shadow-sm border ${
+          subscription?.plan?.name === 'premium' 
+            ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200/50' 
+            : subscription?.plan?.name === 'standard'
+            ? 'bg-blue-50 border-blue-200/50'
+            : 'bg-gray-50 border-gray-200/50'
+        }`}>
+          <div className="text-center">
+            <div className="text-xs text-gray-500 mb-1">현재 플랜</div>
+            <div className={`font-bold text-xl ${
+              subscription?.plan?.name === 'premium'
+                ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600'
+                : subscription?.plan?.name === 'standard'
+                ? 'text-blue-600'
+                : 'text-gray-700'
+            }`}>
+              {subscription?.plan?.display_name || 'Free'}
+            </div>
           </div>
         </div>
       </div>
