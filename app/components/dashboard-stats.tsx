@@ -34,7 +34,7 @@ export default function DashboardStats({
       value: subjects.length,
       unit: '개',
       icon: BookOpen,
-      color: 'text-blue-600 bg-blue-100',
+      color: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30',
       description: '현재 학습 중인 과목 수'
     },
     {
@@ -42,7 +42,7 @@ export default function DashboardStats({
       value: totalRecordings,
       unit: '개',
       icon: Clock,
-      color: 'text-green-600 bg-green-100',
+      color: 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30',
       description: '지금까지 녹음한 강의 수'
     },
     {
@@ -50,7 +50,7 @@ export default function DashboardStats({
       value: totalStudyTime,
       unit: '시간',
       icon: TrendingUp,
-      color: 'text-purple-600 bg-purple-100',
+      color: 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30',
       description: '총 누적 학습 시간'
     },
     {
@@ -58,7 +58,7 @@ export default function DashboardStats({
       value: aiAnalyzedCount,
       unit: '개',
       icon: CheckCircle,
-      color: 'text-emerald-600 bg-emerald-100',
+      color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30',
       description: 'AI 강의 설명이 완료된 녹음'
     }
   ]
@@ -73,18 +73,18 @@ export default function DashboardStats({
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
                     {stat.title}
                   </p>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-gray-900">
+                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {stat.value}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       {stat.unit}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {stat.description}
                   </p>
                 </div>

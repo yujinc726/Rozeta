@@ -115,10 +115,10 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">대시보드 로딩 중...</p>
+          <p className="text-gray-600 dark:text-gray-300">대시보드 로딩 중...</p>
         </div>
       </div>
     )
@@ -150,32 +150,32 @@ export default function DashboardPage() {
   const hasWarning = storagePercent > 80 || aiMinutesPercent > 80
 
   return (
-    <div className="px-6 py-6 space-y-6">
+    <div className="px-6 py-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* 환영 메시지 */}
       <div className="flex items-center justify-between pr-4">
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             안녕하세요, {userName}님! 👋
           </h1>
-          <p className="text-gray-600 mt-1">오늘도 Rozeta와 함께 열심히 공부해봐요</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">오늘도 Rozeta와 함께 열심히 공부해봐요</p>
         </div>
         
         {/* 현재 플랜 표시 */}
         <div className={`px-4 py-3 rounded-xl shadow-sm border ${
           subscription?.plan?.name === 'premium' 
-            ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200/50' 
+            ? 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200/50 dark:border-purple-700/50' 
             : subscription?.plan?.name === 'standard'
-            ? 'bg-blue-50 border-blue-200/50'
-            : 'bg-green-50 border-green-200/50'
+            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200/50 dark:border-blue-700/50'
+            : 'bg-green-50 dark:bg-green-900/20 border-green-200/50 dark:border-green-700/50'
         }`}>
           <div className="text-center">
-            <div className="text-xs text-gray-500 mb-1">현재 플랜</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">현재 플랜</div>
             <div className={`font-bold text-xl ${
               subscription?.plan?.name === 'premium'
                 ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600'
                 : subscription?.plan?.name === 'standard'
-                ? 'text-blue-600'
-                : 'text-green-600'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-green-600 dark:text-green-400'
             }`}>
               {subscription?.plan?.display_name || 'Free'}
             </div>
@@ -185,15 +185,15 @@ export default function DashboardPage() {
 
       {/* 경고 알림 */}
       {hasWarning && (
-        <Alert className="border-orange-200 bg-orange-50">
-          <AlertCircle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
+        <Alert className="border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20">
+          <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <AlertDescription className="text-orange-800 dark:text-orange-200">
             <span className="font-semibold">사용량 주의:</span> 
             {storagePercent > 80 && ' 저장 공간이 부족합니다.'}
             {aiMinutesPercent > 80 && ' AI 변환 시간이 얼마 남지 않았습니다.'}
             <Button 
               variant="link" 
-              className="text-orange-600 p-0 ml-2 h-auto"
+              className="text-orange-600 dark:text-orange-400 p-0 ml-2 h-auto hover:text-orange-700 dark:hover:text-orange-300"
               onClick={() => setShowPlansModal(true)}
             >
               플랜 업그레이드 →
@@ -231,29 +231,29 @@ export default function DashboardPage() {
       </div>
 
       {/* 학습 팁 카드 */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-700">
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Lightbulb className="h-6 w-6 text-blue-600" />
+            <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-lg">
+              <Lightbulb className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold mb-2">💡 학습 팁</h3>
-              <p className="text-sm text-gray-600 mb-3">
+              <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">💡 학습 팁</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 더 효과적인 학습을 위한 Rozeta 활용법을 알아보세요.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div className="flex items-center gap-2 p-2 bg-white/60 rounded">
-                  <Sparkles className="h-4 w-4 text-blue-600" />
-                  <span>AI 설명 기능으로 복습 효과 극대화</span>
+                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded">
+                  <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-gray-700 dark:text-gray-300">AI 설명 기능으로 복습 효과 극대화</span>
                 </div>
-                <div className="flex items-center gap-2 p-2 bg-white/60 rounded">
-                  <Shield className="h-4 w-4 text-green-600" />
-                  <span>클라우드 저장으로 언제 어디서나 접근</span>
+                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded">
+                  <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-gray-700 dark:text-gray-300">클라우드 저장으로 언제 어디서나 접근</span>
                 </div>
-                <div className="flex items-center gap-2 p-2 bg-white/60 rounded">
-                  <Users className="h-4 w-4 text-purple-600" />
-                  <span>과목별 체계적인 학습 관리</span>
+                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded">
+                  <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-gray-700 dark:text-gray-300">과목별 체계적인 학습 관리</span>
                 </div>
               </div>
             </div>

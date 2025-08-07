@@ -13,10 +13,11 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Slider } from "@/components/ui/slider"
 import { toast } from "@/hooks/use-toast"
-import { User, Mic, Bell, Database, Camera, Subtitles, RotateCcw } from "lucide-react"
+import { User, Mic, Database, Camera, Subtitles, RotateCcw, Moon, Sun, Monitor, Palette } from "lucide-react"
 import { auth } from "@/lib/supabase"
 import { settingsDb } from "@/lib/database"
 import { useSubtitleSettings } from "@/app/contexts/subtitle-settings-context"
+import { useTheme } from "@/app/contexts/theme-context"
 
 interface SettingsModalProps {
   open: boolean
@@ -36,6 +37,9 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
     saveSettings: saveSubtitleSettings
   } = useSubtitleSettings()
   
+  // 테마 설정 Context 사용
+  const { theme, actualTheme, setTheme } = useTheme()
+  
   // 프로필 설정
   const [displayName, setDisplayName] = useState("")
   const [email, setEmail] = useState("")
@@ -45,11 +49,6 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
   const [recordingQuality, setRecordingQuality] = useState("high")
   const [autoSave, setAutoSave] = useState(true)
   const [autoStartRecording, setAutoStartRecording] = useState(false)
-  
-  // 알림 설정
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [inAppNotifications, setInAppNotifications] = useState(true)
-  const [recordingReminders, setRecordingReminders] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -84,12 +83,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
             setAutoStartRecording(settings.recording.auto_start ?? false)
           }
           
-          // 알림 설정
-          if (settings.notifications) {
-            setEmailNotifications(settings.notifications.email ?? true)
-            setInAppNotifications(settings.notifications.in_app ?? true)
-            setRecordingReminders(settings.notifications.reminders ?? false)
-          }
+
           
 
         }
@@ -113,11 +107,6 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
           quality: recordingQuality,
           auto_save: autoSave,
           auto_start: autoStartRecording
-        },
-        notifications: {
-          email: emailNotifications,
-          in_app: inAppNotifications,
-          reminders: recordingReminders
         }
       }
       
@@ -259,9 +248,9 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                   <Subtitles className="w-4 h-4" />
                   자막
                 </TabsTrigger>
-                <TabsTrigger value="notifications" className="flex items-center gap-2">
-                  <Bell className="w-4 h-4" />
-                  알림
+                <TabsTrigger value="theme" className="flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  테마
                 </TabsTrigger>
                 <TabsTrigger value="data" className="flex items-center gap-2">
                   <Database className="w-4 h-4" />
@@ -554,55 +543,133 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                 </Card>
               </TabsContent>
 
-              <TabsContent value="notifications" className="space-y-6">
+              <TabsContent value="theme" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>알림 설정</CardTitle>
+                    <CardTitle>테마 설정</CardTitle>
                     <CardDescription>
-                      알림 수신 방법을 설정하세요
+                      화면의 색상 테마를 선택하세요
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="email-notifications">이메일 알림</Label>
-                        <p className="text-sm text-gray-500">
-                          중요한 업데이트를 이메일로 받습니다
-                        </p>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <Label>테마 모드</Label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {/* 라이트 모드 */}
+                        <div
+                          className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            theme === 'light' 
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' 
+                              : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
+                          }`}
+                          onClick={() => setTheme('light')}
+                        >
+                          <Sun className="w-8 h-8 mb-2 text-yellow-500" />
+                          <span className="text-sm font-medium">라이트</span>
+                          <span className="text-xs text-gray-500 text-center mt-1">
+                            밝은 테마
+                          </span>
+                          {theme === 'light' && (
+                            <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></div>
+                          )}
+                        </div>
+
+                        {/* 다크 모드 */}
+                        <div
+                          className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            theme === 'dark' 
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' 
+                              : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
+                          }`}
+                          onClick={() => setTheme('dark')}
+                        >
+                          <Moon className="w-8 h-8 mb-2 text-blue-500" />
+                          <span className="text-sm font-medium">다크</span>
+                          <span className="text-xs text-gray-500 text-center mt-1">
+                            어두운 테마
+                          </span>
+                          {theme === 'dark' && (
+                            <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></div>
+                          )}
+                        </div>
+
+                        {/* 시스템 모드 */}
+                        <div
+                          className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            theme === 'system' 
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' 
+                              : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
+                          }`}
+                          onClick={() => setTheme('system')}
+                        >
+                          <Monitor className="w-8 h-8 mb-2 text-gray-500" />
+                          <span className="text-sm font-medium">시스템</span>
+                          <span className="text-xs text-gray-500 text-center mt-1">
+                            시스템 설정 적용
+                          </span>
+                          {theme === 'system' && (
+                            <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></div>
+                          )}
+                        </div>
                       </div>
-                      <Switch
-                        id="email-notifications"
-                        checked={emailNotifications}
-                        onCheckedChange={setEmailNotifications}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="in-app-notifications">앱 내 알림</Label>
-                        <p className="text-sm text-gray-500">
-                          앱 사용 중 알림을 표시합니다
-                        </p>
+                      
+                      {/* 현재 적용된 테마 표시 */}
+                      <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        {actualTheme === 'dark' ? (
+                          <Moon className="w-4 h-4 text-blue-500" />
+                        ) : (
+                          <Sun className="w-4 h-4 text-yellow-500" />
+                        )}
+                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                          현재 적용: <span className="font-medium">
+                            {actualTheme === 'dark' ? '다크 모드' : '라이트 모드'}
+                          </span>
+                          {theme === 'system' && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(시스템 설정)</span>
+                          )}
+                        </span>
                       </div>
-                      <Switch
-                        id="in-app-notifications"
-                        checked={inAppNotifications}
-                        onCheckedChange={setInAppNotifications}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="recording-reminders">녹음 알림</Label>
-                        <p className="text-sm text-gray-500">
-                          예약된 강의 시간에 녹음 알림을 받습니다
-                        </p>
+                      
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium">테마 미리보기</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* 라이트 테마 미리보기 */}
+                          <div className="p-3 bg-white border rounded-lg">
+                            <div className="text-xs text-gray-500 mb-2">라이트 테마</div>
+                            <div className="space-y-2">
+                              <div className="h-2 bg-gray-200 rounded"></div>
+                              <div className="h-2 bg-gray-100 rounded w-3/4"></div>
+                              <div className="h-2 bg-purple-200 rounded w-1/2"></div>
+                            </div>
+                          </div>
+                          
+                          {/* 다크 테마 미리보기 */}
+                          <div className="p-3 bg-gray-900 border border-gray-700 rounded-lg">
+                            <div className="text-xs text-gray-400 mb-2">다크 테마</div>
+                            <div className="space-y-2">
+                              <div className="h-2 bg-gray-700 rounded"></div>
+                              <div className="h-2 bg-gray-600 rounded w-3/4"></div>
+                              <div className="h-2 bg-purple-600 rounded w-1/2"></div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <Switch
-                        id="recording-reminders"
-                        checked={recordingReminders}
-                        onCheckedChange={setRecordingReminders}
-                      />
+                      
+                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-white text-xs">💡</span>
+                          </div>
+                          <div className="text-sm">
+                            <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">테마 설정 팁</p>
+                            <p className="text-blue-700 dark:text-blue-300 text-xs leading-relaxed">
+                              • <strong>라이트 모드</strong>: 밝은 환경에서 더 나은 가독성을 제공합니다<br/>
+                              • <strong>다크 모드</strong>: 눈의 피로를 줄이고 배터리 소모를 절약합니다<br/>
+                              • <strong>시스템 설정</strong>: 기기의 테마 설정에 따라 자동으로 변경됩니다
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

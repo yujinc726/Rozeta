@@ -87,10 +87,10 @@ export default function SubjectPage({ params }: SubjectPageProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">로딩 중...</p>
+          <p className="text-gray-600 dark:text-gray-300">로딩 중...</p>
         </div>
       </div>
     )
@@ -171,14 +171,14 @@ export default function SubjectPage({ params }: SubjectPageProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="relative bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-200/60 shadow-sm">
+      <div className="relative bg-gradient-to-r from-slate-50/50 to-white dark:from-gray-800/50 dark:to-gray-900 border-b border-slate-200/60 dark:border-gray-700/60 shadow-sm">
         <div className="px-6 py-5">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-medium text-slate-900">{subject.name}</h1>
-              <p className="text-sm text-slate-500 mt-2">
+              <h1 className="text-2xl font-medium text-slate-900 dark:text-gray-100">{subject.name}</h1>
+              <p className="text-sm text-slate-500 dark:text-gray-400 mt-2">
                 전체 기록 {recordings.length}개
               </p>
             </div>

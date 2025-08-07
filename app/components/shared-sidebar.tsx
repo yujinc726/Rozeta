@@ -112,12 +112,12 @@ export default function SharedSidebar({
   return (
     <TooltipProvider>
       <div className={cn(
-        "fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-50",
+        "fixed left-0 top-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 z-50",
         isCollapsed ? "w-16" : "w-80"
       )}>
         {/* Header */}
       <div className={cn(
-        "border-b border-gray-200",
+        "border-b border-gray-200 dark:border-gray-700",
         isCollapsed ? "p-3 flex justify-center" : "p-6"
       )}>
         <div 
@@ -192,7 +192,7 @@ export default function SharedSidebar({
           
           {!isCollapsed && (
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-700">내 과목</h2>
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">내 과목</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -207,7 +207,7 @@ export default function SharedSidebar({
 
           <div className="space-y-2">
             {!isCollapsed && isAddingSubject && (
-              <div className="flex gap-2 p-2 bg-gray-50 rounded-lg">
+              <div className="flex gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <Input
                   value={newSubjectName}
                   onChange={(e) => setNewSubjectName(e.target.value)}
@@ -233,8 +233,8 @@ export default function SharedSidebar({
                 className={cn(
                   "group relative rounded-lg transition-all mb-2",
                   selectedSubject?.id === subject.id
-                    ? 'bg-purple-50 text-purple-700 font-medium'
-                    : 'hover:bg-gray-50',
+                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800',
                   isCollapsed ? "flex justify-center" : "w-full"
                 )}
               >
@@ -249,11 +249,16 @@ export default function SharedSidebar({
                           <div className={cn(
                             "rounded flex items-center justify-center flex-shrink-0",
                             selectedSubject?.id === subject.id
-                              ? 'bg-purple-200'
-                              : 'bg-gray-100',
+                              ? 'bg-purple-200 dark:bg-purple-700'
+                              : 'bg-gray-100 dark:bg-gray-700',
                             "w-8 h-8"
                           )}>
-                            <Folder className="w-4 h-4" />
+                            <Folder className={cn(
+                              "w-4 h-4",
+                              selectedSubject?.id === subject.id
+                                ? 'text-purple-600 dark:text-purple-200'
+                                : 'text-gray-600 dark:text-gray-300'
+                            )} />
                           </div>
                         </div>
                       </button>
@@ -276,15 +281,15 @@ export default function SharedSidebar({
                       <div className={cn(
                         "rounded flex items-center justify-center flex-shrink-0",
                         selectedSubject?.id === subject.id
-                          ? 'bg-purple-200'
-                          : 'bg-gray-100',
+                          ? 'bg-purple-200 dark:bg-purple-700'
+                          : 'bg-gray-100 dark:bg-gray-700',
                         "w-8 h-8"
                       )}>
                         <Folder className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{subject.name}</p>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           기록 {subject.recordingCount + subject.timerCount}개
                         </span>
                       </div>
@@ -337,7 +342,7 @@ export default function SharedSidebar({
                         onToggleCollapse?.()
                         setTimeout(() => setIsAddingSubject(true), 300)
                       }}
-                      className="w-12 h-12 p-0 hover:bg-gray-50 rounded-lg flex items-center justify-center"
+                      className="w-12 h-12 p-0 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center justify-center"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -359,7 +364,7 @@ export default function SharedSidebar({
           size="sm"
           onClick={onToggleCollapse}
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 w-6 h-6 p-0 bg-white hover:bg-gray-100 rounded-full shadow-md border border-gray-200 transition-all z-50",
+            "absolute top-1/2 -translate-y-1/2 w-6 h-6 p-0 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full shadow-md border border-gray-200 dark:border-gray-600 transition-all z-50",
             isCollapsed ? "right-[-12px]" : "right-[-12px]"
           )}
           title={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
@@ -386,7 +391,7 @@ export default function SharedSidebar({
                   <TooltipTrigger asChild>
                     <Button 
                       variant="ghost" 
-                      className="w-12 h-12 p-0 justify-center hover:bg-gray-50"
+                      className="w-12 h-12 p-0 justify-center hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
                       <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
                         <User className="w-4 h-4 text-white" />
@@ -403,17 +408,17 @@ export default function SharedSidebar({
               ) : (
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start px-3 py-2 hover:bg-gray-50"
+                  className="w-full justify-start px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <div className="flex items-center gap-3 w-full">
                     <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <div className="text-sm font-medium truncate">{userProfile?.full_name || user?.email?.split('@')[0] || '사용자'}</div>
-                      <div className="text-xs text-gray-500 truncate">{user?.email || ''}</div>
+                      <div className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">{userProfile?.full_name || user?.email?.split('@')[0] || '사용자'}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email || ''}</div>
                     </div>
-                    <MoreHorizontal className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <MoreHorizontal className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                   </div>
                 </Button>
               )}
@@ -424,7 +429,7 @@ export default function SharedSidebar({
                 설정
               </DropdownMenuItem>
               <DropdownMenuItem 
-                className="text-red-600"
+                className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 focus:bg-red-50 dark:focus:bg-red-900/20"
                 onClick={async () => {
                   await auth.signOut()
                   router.push('/')
@@ -472,7 +477,7 @@ export default function SharedSidebar({
             <DialogTitle>과목 삭제</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-gray-300">
               이 과목을 삭제하시겠습니까? 과목과 관련된 모든 기록이 함께 삭제됩니다.
             </p>
             <p className="text-red-600 text-sm mt-2 font-medium">

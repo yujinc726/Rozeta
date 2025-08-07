@@ -65,9 +65,9 @@ export default function UsageTracker({
   }
 
   const getTextColor = (percent: number) => {
-    if (percent >= 90) return 'text-red-600'
-    if (percent >= 70) return 'text-orange-600'
-    return 'text-green-600'
+    if (percent >= 90) return 'text-red-600 dark:text-red-400'
+    if (percent >= 70) return 'text-orange-600 dark:text-orange-400'
+    return 'text-green-600 dark:text-green-400'
   }
 
   return (
@@ -88,8 +88,8 @@ export default function UsageTracker({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5 text-gray-600" />
-              <span className="font-medium">저장 공간</span>
+              <HardDrive className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <span className="font-medium text-gray-900 dark:text-gray-100">저장 공간</span>
             </div>
             <span className={`text-sm font-semibold ${getTextColor(storagePercent)}`}>
               {storageUsedGB}GB / {storageLimitGB}GB
@@ -102,15 +102,15 @@ export default function UsageTracker({
               className="h-3"
               indicatorClassName={getProgressColor(storagePercent)}
             />
-            <div className="flex justify-between text-xs text-gray-500">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
               <span>{storagePercent.toFixed(1)}% 사용 중</span>
               <span>{(storageLimitGB - parseFloat(storageUsedGB)).toFixed(2)}GB 남음</span>
             </div>
             
             {/* 상세 용량 정보 */}
             {storageUsedDetailed && storageUsedDetailed.totalBytes > 0 && (
-              <div className="pt-2 border-t border-gray-100">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                   <span className="flex items-center gap-1">
                     <Mic className="h-3 w-3" />
                     녹음 파일

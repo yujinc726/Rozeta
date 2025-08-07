@@ -575,9 +575,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const pdfUrls = recording.pdf_url ? recording.pdf_url.split(',') : []
 
   return (
-    <div className="flex-1 bg-gray-50">
+    <div className="flex-1 bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="relative bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-200/60 shadow-sm">
+      <div className="relative bg-gradient-to-r from-slate-50/50 to-white dark:from-gray-800/50 dark:to-gray-900 border-b border-slate-200/60 dark:border-gray-700/60 shadow-sm">
         <div className="px-6 py-5">
                         {isEditingTitle ? (
                 <Input
@@ -605,7 +605,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 />
               ) : (
                 <h1 
-                  className="text-2xl font-medium text-slate-900 cursor-pointer hover:text-slate-700 hover:bg-slate-100/60 transition-all duration-200 rounded-sm inline-block"
+                  className="text-2xl font-medium text-slate-900 dark:text-gray-100 cursor-pointer hover:text-slate-700 dark:hover:text-gray-300 hover:bg-slate-100/60 dark:hover:bg-gray-800/60 transition-all duration-200 rounded-sm inline-block"
                   onClick={() => {
                     setIsEditingTitle(true)
                     setEditedTitle(recording.title)
@@ -616,7 +616,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 </h1>
               )}
           <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                          <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400">
                 <Clock className="w-3.5 h-3.5" />
                 <span>{new Date(recording.created_at).toLocaleString('ko-KR', {
                   year: 'numeric',
@@ -644,12 +644,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       <div className="p-6 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* 음성 텍스트 변환 카드 */}
-          <Card className={hasTranscript ? "border-green-200 bg-green-50" : "border-orange-200 bg-orange-50"}>
+          <Card className={hasTranscript ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20" : "border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20"}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg ${hasTranscript ? "bg-green-100" : "bg-orange-100"}`}>
-                    <FileAudio className={`w-6 h-6 ${hasTranscript ? "text-green-600" : "text-orange-600"}`} />
+                  <div className={`p-3 rounded-lg ${hasTranscript ? "bg-green-100 dark:bg-green-800" : "bg-orange-100 dark:bg-orange-800"}`}>
+                    <FileAudio className={`w-6 h-6 ${hasTranscript ? "text-green-600 dark:text-green-300" : "text-orange-600 dark:text-orange-300"}`} />
                   </div>
                   <div>
                     <CardTitle className="text-lg">AI 자막 · 텍스트 생성</CardTitle>
@@ -667,7 +667,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   {hasTranscript
                     ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
                     : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
@@ -688,12 +688,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           </Card>
 
           {/* AI 설명 카드 */}
-          <Card className={hasAIAnalysis ? "border-purple-200 bg-purple-50" : "border-gray-200"}>
+          <Card className={hasAIAnalysis ? "border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20" : "border-gray-200 dark:border-gray-700"}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg ${hasAIAnalysis ? "bg-purple-100" : "bg-gray-100"}`}>
-                    <Brain className={`w-6 h-6 ${hasAIAnalysis ? "text-purple-600" : "text-gray-400"}`} />
+                  <div className={`p-3 rounded-lg ${hasAIAnalysis ? "bg-purple-100 dark:bg-purple-800" : "bg-gray-100 dark:bg-gray-700"}`}>
+                    <Brain className={`w-6 h-6 ${hasAIAnalysis ? "text-purple-600 dark:text-purple-300" : "text-gray-400 dark:text-gray-500"}`} />
                   </div>
                   <div>
                     <CardTitle className="text-lg">AI 강의 설명</CardTitle>
@@ -714,7 +714,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             <CardContent>
               {hasAIAnalysis ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     AI가 강의 내용을 분석했습니다. 슬라이드별 설명을 확인하세요.
                   </p>
                   <Button 
@@ -732,7 +732,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 </div>
               ) : hasTranscript ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     텍스트 생성이 완료되어 AI 분석을 시작할 수 있습니다.
                   </p>
                   <Button 
@@ -774,13 +774,13 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-purple-600" />
+                <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                   <span>슬라이드</span>
                   <Badge variant="outline" className="ml-2">
                     {getCurrentEntryIndex() + 1} / {recordEntriesList.length}
                   </Badge>
                 </div>
-                <span className="text-xs text-gray-400 font-normal">← → 키로 이동</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">← → 키로 이동</span>
               </CardTitle>
               <CardDescription>
                 {currentEntry.material_name}
@@ -855,22 +855,22 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   {currentEntry.memo ? (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <div className="p-2 bg-amber-100 rounded-lg">
-                          <Edit className="w-5 h-5 text-amber-600" />
+                        <div className="p-2 bg-amber-100 dark:bg-amber-800 rounded-lg">
+                          <Edit className="w-5 h-5 text-amber-600 dark:text-amber-300" />
                         </div>
-                        <h4 className="text-lg font-semibold text-gray-800">메모</h4>
+                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200">메모</h4>
                       </div>
-                      <div className="bg-gradient-to-br from-amber-50/70 to-orange-50/70 border border-amber-200 rounded-lg p-4">
-                        <p className="text-sm text-gray-800 leading-6 font-medium whitespace-pre-wrap">
+                      <div className="bg-gradient-to-br from-amber-50/70 to-orange-50/70 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4">
+                        <p className="text-sm text-gray-800 dark:text-gray-200 leading-6 font-medium whitespace-pre-wrap">
                           {currentEntry.memo}
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                    <div className="flex items-center justify-center h-32 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600">
                       <div className="text-center">
-                        <Edit className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">이 슬라이드의 메모가 없습니다</p>
+                        <Edit className="w-8 h-8 text-gray-300 dark:text-gray-500 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500 dark:text-gray-400">이 슬라이드의 메모가 없습니다</p>
                       </div>
                     </div>
                   )}
@@ -920,7 +920,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-purple-600" />
+                <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 슬라이드 기록
                 <Badge variant="outline">{recordEntriesList.length}개</Badge>
               </CardTitle>
@@ -930,7 +930,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     onClick={() => setShowTranscripts(!showTranscripts)}
                     size="sm"
                     variant="outline"
-                    className="gap-2"
+                    className="gap-2 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                   >
                     <FileText className="w-4 h-4" />
                     강의 내용 {showTranscripts ? '숨기기' : '보기'}
@@ -958,8 +958,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                       return (
                     <div key={entry.id} className={`relative rounded-xl border-2 transition-all duration-300 cursor-pointer ${
                       currentEntry?.id === entry.id 
-                        ? 'bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-50 border-purple-200 shadow-lg' 
-                        : 'bg-gradient-to-br from-gray-50 via-white to-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md'
+                        ? 'bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-50 dark:from-purple-900/30 dark:via-indigo-900/30 dark:to-purple-900/30 border-purple-200 dark:border-purple-600 shadow-lg' 
+                        : 'bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md'
                             }`}
                             onClick={() => {
                               if (editingEntry?.id !== entry.id) {
@@ -972,33 +972,33 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     }}>
                       
                       {/* 슬라이드 정보 헤더 */}
-                      <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
+                      <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-gray-700/50">
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant={currentEntry?.id === entry.id ? 'default' : 'secondary'} className="text-sm font-medium">
                               슬라이드 {entry.slide_number}
                             </Badge>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-sm text-gray-600">{entry.material_name}</span>
-                            <span className="text-gray-400">•</span>
+                            <span className="text-gray-400 dark:text-gray-500">•</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-300">{entry.material_name}</span>
+                            <span className="text-gray-400 dark:text-gray-500">•</span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 seekToTime(entry.start_time)
                               }}
-                              className="text-sm text-blue-600 hover:underline font-medium"
+                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
                             >
                               {entry.start_time}
                             </button>
                             {entry.end_time && (
                               <>
-                                <span className="text-gray-400">~</span>
+                                <span className="text-gray-400 dark:text-gray-500">~</span>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     seekToTime(entry.end_time!)
                                   }}
-                                  className="text-sm text-blue-600 hover:underline font-medium"
+                                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
                                 >
                                   {entry.end_time}
                                 </button>
@@ -1011,9 +1011,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                           {currentEntry?.id === entry.id && isPlaying && (
                             <div className="flex items-center gap-2">
                               <div className="flex space-x-1">
-                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                <div className="w-2 h-2 bg-purple-400 dark:bg-purple-300 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-purple-400 dark:bg-purple-300 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-purple-400 dark:bg-purple-300 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                               </div>
                               <Badge className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0 text-xs px-2 py-1">
                                 재생 중
@@ -1027,7 +1027,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                             }}
                             size="sm"
                             variant="ghost"
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 dark:hover:bg-gray-700"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -1036,7 +1036,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
                       {/* 편집 모드 */}
                       {editingEntry?.id === entry.id && (
-                        <div className="p-4 space-y-4 bg-gray-50/50">
+                        <div className="p-4 space-y-4 bg-gray-50/50 dark:bg-gray-800/50">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="material_name" className="text-sm font-medium">강의안명</Label>
@@ -1091,6 +1091,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                                   onClick={handleCancel}
                                   size="sm"
                               variant="outline"
+                              className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                                 >
                               <X className="w-4 h-4 mr-1" />
                               취소
@@ -1113,13 +1114,13 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                           {entry.memo && (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-amber-100 rounded-lg">
-                                  <Edit className="w-3 h-3 text-amber-600" />
-                                </div>
-                                <span className="text-sm font-medium text-gray-700">메모</span>
+                                                                <div className="p-1.5 bg-amber-100 dark:bg-amber-800 rounded-lg">
+                                  <Edit className="w-3 h-3 text-amber-600 dark:text-amber-300" />
                               </div>
-                              <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3">
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.memo}</p>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">메모</span>
+                              </div>
+                              <div className="bg-amber-50/50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-700 rounded-lg p-3">
+                                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{entry.memo}</p>
                               </div>
                             </div>
                           )}
@@ -1128,20 +1129,20 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                           {slideTranscript?.transcript && showTranscripts && (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-purple-100 rounded-lg">
-                                  <FileText className="w-3 h-3 text-purple-600" />
+                                <div className="p-1.5 bg-purple-100 dark:bg-purple-800 rounded-lg">
+                                  <FileText className="w-3 h-3 text-purple-600 dark:text-purple-300" />
                               </div>
-                                <span className="text-sm font-medium text-gray-700">강의 내용</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">강의 내용</span>
                               </div>
                               
                               <div className="relative">
                                 <div className="absolute top-2 left-2 text-lg opacity-20 text-purple-400">"</div>
                                 <div className={`p-4 pl-6 rounded-lg border ${
                                 currentEntry?.id === entry.id 
-                                    ? 'bg-purple-50/50 border-purple-100' 
-                                    : 'bg-gray-50/50 border-gray-100'
+                                    ? 'bg-purple-50/50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-700' 
+                                    : 'bg-gray-50/50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700'
                               }`}>
-                                  <p className="text-sm text-gray-800 leading-6 font-medium tracking-wide whitespace-pre-wrap">
+                                  <p className="text-sm text-gray-800 dark:text-gray-200 leading-6 font-medium tracking-wide whitespace-pre-wrap">
                                   {slideTranscript.transcript}
                                 </p>
                               </div>
@@ -1158,7 +1159,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                                 AI 설명 생성됨
                               </Badge>
                               {entry.ai_generated_at && (
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
                                   {new Date(entry.ai_generated_at).toLocaleTimeString('ko-KR')}
                                 </span>
                               )}
@@ -1169,7 +1170,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                       
                       {/* 하단 장식 라인 */}
                       {currentEntry?.id === entry.id && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-purple-400/30 to-transparent rounded-b-xl"></div>
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-purple-400/30 dark:via-purple-300/40 to-transparent rounded-b-xl"></div>
                       )}
                     </div>
                   )
@@ -1250,15 +1251,15 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               {/* 현재 재생 정보 */}
               <div className="flex items-center gap-3 min-w-0 w-72">
                 <div className="shrink-0">
-                  <FileAudio className="w-5 h-5 text-purple-600" />
+                  <FileAudio className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                     {recording.title}
                   </p>
                   {currentEntry && (
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                       슬라이드 {currentEntry.slide_number}
                     </p>
                   )}
@@ -1328,13 +1329,13 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     onClick={() => setShowLiveSubtitle(!showLiveSubtitle)}
                     size="sm"
                     variant="ghost"
-                    className={`gap-1 text-xs ${showLiveSubtitle ? 'text-purple-600' : 'text-gray-500'}`}
+                    className={`gap-1 text-xs ${showLiveSubtitle ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`}
                   >
                     <FileText className="w-3 h-3" />
                     실시간 자막
                   </Button>
                 )}
-                <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500">
+                <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   <span>재생 속도: 1.0x</span>
                   <span>•</span>
                   <span>스페이스바: 재생/일시정지</span>

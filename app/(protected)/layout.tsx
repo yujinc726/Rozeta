@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { SidebarProvider, useSidebarContext } from "@/app/contexts/sidebar-context"
 import { SubtitleSettingsProvider } from "@/app/contexts/subtitle-settings-context"
+import { ThemeProvider } from "@/app/contexts/theme-context"
 
 function ProtectedLayoutContent({
   children,
@@ -169,7 +170,7 @@ function ProtectedLayoutContent({
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       <SharedSidebar
         subjects={subjects}
         selectedSubject={selectedSubject}
@@ -205,12 +206,14 @@ export default function ProtectedLayout({
   children: React.ReactNode
 }) {
   return (
-    <SidebarProvider>
-      <SubtitleSettingsProvider>
-        <ProtectedLayoutContent>
-          {children}
-        </ProtectedLayoutContent>
-      </SubtitleSettingsProvider>
-    </SidebarProvider>
+    <ThemeProvider>
+      <SidebarProvider>
+        <SubtitleSettingsProvider>
+          <ProtectedLayoutContent>
+            {children}
+          </ProtectedLayoutContent>
+        </SubtitleSettingsProvider>
+      </SidebarProvider>
+    </ThemeProvider>
   )
 }

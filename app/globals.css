@@ -66,6 +66,162 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* 다크모드 기본 스타일 강화 */
+  .dark {
+    color-scheme: dark;
+  }
+  
+  /* 입력 요소들 다크모드 스타일 */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    background-color: rgb(31 41 55);
+    border-color: rgb(75 85 99);
+    color: rgb(243 244 246);
+  }
+  
+  /* 버튼 다크모드 스타일 */
+  .dark button:not(.gradient-purple-pink):not([data-variant="default"]) {
+    color: rgb(243 244 246);
+  }
+  
+  /* 카드 및 패널 다크모드 스타일 */
+  .dark .bg-white {
+    background-color: rgb(17 24 39);
+  }
+  
+  .dark .bg-gray-50 {
+    background-color: rgb(31 41 55);
+  }
+  
+  .dark .bg-gray-100 {
+    background-color: rgb(55 65 81);
+  }
+  
+  /* 텍스트 색상 개선 */
+  .dark .text-gray-600 {
+    color: rgb(209 213 219);
+  }
+  
+  .dark .text-gray-500 {
+    color: rgb(156 163 175);
+  }
+  
+  .dark .text-gray-900 {
+    color: rgb(243 244 246);
+  }
+  
+  /* 호버 효과 개선 */
+  .dark .hover\\:bg-gray-50:hover {
+    background-color: rgb(31 41 55);
+  }
+  
+  .dark .hover\\:bg-gray-100:hover {
+    background-color: rgb(55 65 81);
+  }
+  
+  /* 테두리 색상 개선 */
+  .dark .border-gray-200 {
+    border-color: rgb(55 65 81);
+  }
+  
+  .dark .border-gray-300 {
+    border-color: rgb(75 85 99);
+  }
+  
+  /* 추가 다크모드 스타일 */
+  .dark .shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(17, 24, 39, 0.2);
+  }
+  
+  .dark .shadow-md {
+    box-shadow: 0 4px 6px -1px rgba(17, 24, 39, 0.3), 0 2px 4px -1px rgba(17, 24, 39, 0.3);
+  }
+  
+  .dark .shadow-lg {
+    box-shadow: 0 10px 15px -3px rgba(17, 24, 39, 0.4), 0 4px 6px -2px rgba(17, 24, 39, 0.4);
+  }
+  
+  /* 카드 컴포넌트 */
+  .dark [data-radix-collection-item] {
+    background-color: rgb(31 41 55);
+    border-color: rgb(55 65 81);
+  }
+  
+  /* 드롭다운 메뉴 */
+  .dark [role="menuitem"] {
+    color: rgb(229 231 235);
+  }
+  
+  .dark [role="menuitem"]:hover {
+    background-color: rgb(55 65 81);
+    color: rgb(243 244 246);
+  }
+  
+  /* 진행바 */
+  .dark .bg-gray-200 {
+    background-color: rgb(55 65 81);
+  }
+  
+  /* 알림 */
+  .dark .bg-blue-50 {
+    background-color: rgba(30, 58, 138, 0.2);
+  }
+  
+  .dark .bg-orange-50 {
+    background-color: rgba(154, 52, 18, 0.2);
+  }
+  
+  .dark .bg-green-50 {
+    background-color: rgba(20, 83, 45, 0.2);
+  }
+  
+  .dark .bg-purple-50 {
+    background-color: rgba(88, 28, 135, 0.2);
+  }
+  
+  /* 스크롤바 */
+  .dark ::-webkit-scrollbar {
+    width: 0.5rem;
+  }
+  
+  .dark ::-webkit-scrollbar-track {
+    background-color: rgb(31 41 55);
+  }
+  
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: rgb(75 85 99);
+    border-radius: 9999px;
+  }
+  
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(107 114 128);
+  }
+  
+  /* 플레이스홀더 텍스트 */
+  .dark ::placeholder {
+    color: rgb(107 114 128);
+  }
+  
+  /* 링크 */
+  .dark a {
+    color: rgb(96 165 250);
+  }
+  
+  .dark a:hover {
+    color: rgb(147 197 253);
+  }
+  
+  /* 폼 요소 포커스 */
+  .dark input:focus,
+  .dark textarea:focus,
+  .dark select:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.2);
+    border-color: rgb(147 51 234);
+  }
 }
 
 @layer utilities {
