@@ -11,13 +11,20 @@ import {
   AlertCircle, 
   TrendingUp,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Mic,
+  FileText
 } from 'lucide-react'
 import { UserSubscription } from '@/lib/supabase'
 
 interface UsageTrackerProps {
   subscription: UserSubscription | null
   storageUsed: number // in bytes
+  storageUsedDetailed?: {
+    audioBytes: number
+    pdfBytes: number
+    totalBytes: number
+  } | null
   aiMinutesUsed: number
   onUpgrade?: () => void
   onViewDetails?: () => void
@@ -26,6 +33,7 @@ interface UsageTrackerProps {
 export default function UsageTracker({
   subscription,
   storageUsed,
+  storageUsedDetailed,
   aiMinutesUsed,
   onUpgrade,
   onViewDetails
@@ -98,6 +106,26 @@ export default function UsageTracker({
               <span>{storagePercent.toFixed(1)}% 사용 중</span>
               <span>{(storageLimitGB - parseFloat(storageUsedGB)).toFixed(2)}GB 남음</span>
             </div>
+            
+            {/* 상세 용량 정보 */}
+            {storageUsedDetailed && storageUsedDetailed.totalBytes > 0 && (
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span className="flex items-center gap-1">
+                    <Mic className="h-3 w-3" />
+                    녹음 파일
+                  </span>
+                  <span>{(storageUsedDetailed.audioBytes / (1024 * 1024 * 1024)).toFixed(2)}GB</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    강의안 파일
+                  </span>
+                  <span>{(storageUsedDetailed.pdfBytes / (1024 * 1024 * 1024)).toFixed(2)}GB</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {storagePercent >= 90 && (

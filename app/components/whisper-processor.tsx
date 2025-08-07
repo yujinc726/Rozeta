@@ -161,8 +161,8 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
       {/* Header */}
       <div className="border-b px-6 py-4">
         <div>
-          <h2 className="text-xl font-bold">AI 텍스트 변환</h2>
-          <p className="text-sm text-gray-600 mt-1">녹음된 강의 음성을 텍스트로 변환합니다</p>
+                      <h2 className="text-xl font-bold">AI 자막 · 텍스트 생성</h2>
+          <p className="text-sm text-gray-600 mt-1">녹음된 강의 음성을 텍스트로 생성합니다</p>
         </div>
       </div>
 

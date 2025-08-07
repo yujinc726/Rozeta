@@ -650,9 +650,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     <FileAudio className={`w-6 h-6 ${hasTranscript ? "text-green-600" : "text-orange-600"}`} />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">AI 텍스트 변환</CardTitle>
+                    <CardTitle className="text-lg">AI 자막 · 텍스트 생성</CardTitle>
                     <CardDescription>
-                      {hasTranscript ? "변환 완료" : "아직 변환되지 않음"}
+                      {hasTranscript ? "생성 완료" : "아직 생성되지 않음"}
                     </CardDescription>
                   </div>
                 </div>
@@ -667,8 +667,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               <div className="space-y-3">
                 <p className="text-sm text-gray-700">
                   {hasTranscript
-                    ? "이미 텍스트 변환이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
-                    : "음성을 텍스트로 변환하면 AI가 강의 내용을 분석하고 요약해드립니다."}
+                    ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
+                    : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
                 </p>
                 <Button 
                   onClick={() => setShowWhisperDialog(true)}
@@ -679,7 +679,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   }`}
                 >
                   <Wand2 className="w-4 h-4 mr-2" />
-                  {hasTranscript ? "텍스트 다시 변환" : "AI 텍스트 변환"}
+                  {hasTranscript ? "자막 · 텍스트 다시 생성" : "AI 자막 · 텍스트 생성"}
                 </Button>
               </div>
             </CardContent>
@@ -696,7 +696,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   <div>
                     <CardTitle className="text-lg">AI 강의 설명</CardTitle>
                     <CardDescription>
-                      {hasAIAnalysis ? "분석 완료" : hasTranscript ? "분석 가능" : "텍스트 변환 필요"}
+                      {hasAIAnalysis ? "분석 완료" : hasTranscript ? "분석 가능" : "텍스트 생성 필요"}
                     </CardDescription>
                   </div>
                 </div>
@@ -731,7 +731,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               ) : hasTranscript ? (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-700">
-                    텍스트 변환이 완료되어 AI 분석을 시작할 수 있습니다.
+                    텍스트 생성이 완료되어 AI 분석을 시작할 수 있습니다.
                   </p>
                   <Button 
                     onClick={() => generateAIExplanations(false)}
@@ -748,9 +748,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   </Button>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">
-                  먼저 음성을 텍스트로 변환해주세요.
-                </p>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                                          AI 강의 설명을 생성하려면 먼저 <strong>AI 자막 · 텍스트 생성</strong>을 완료해주세요.
+                  </AlertDescription>
+                </Alert>
               )}
             </CardContent>
           </Card>
@@ -875,15 +878,35 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               {/* AI 설명 표시 */}
               {currentEntry && (
                 <div className="mt-4">
-                  {console.log('Current entry AI explanation:', currentEntry.ai_explanation)}
-                  {console.log('Is generating:', isGeneratingAI)}
-                  <SlideAIExplanation
-                    explanation={currentEntry.ai_explanation}
-                    slideNumber={currentEntry.slide_number}
-                    isGenerating={isGeneratingAI}
-                    generatedAt={currentEntry.ai_generated_at}
-                    onRegenerate={() => generateAIExplanations(true)}
-                  />
+                  {hasTranscript ? (
+                    <SlideAIExplanation
+                      explanation={currentEntry.ai_explanation}
+                      slideNumber={currentEntry.slide_number}
+                      isGenerating={isGeneratingAI}
+                      generatedAt={currentEntry.ai_generated_at}
+                      onRegenerate={() => generateAIExplanations(true)}
+                    />
+                  ) : (
+                    <Card className="border-gray-200">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Brain className="w-5 h-5 text-gray-400" />
+                          AI 강의 설명
+                        </CardTitle>
+                        <CardDescription>
+                          텍스트 생성 필요
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Alert>
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            AI 강의 설명을 보려면 먼저 <strong>AI 자막 · 텍스트 생성</strong>을 완료해주세요.
+                          </AlertDescription>
+                        </Alert>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -1346,7 +1369,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       <Dialog open={showWhisperDialog} onOpenChange={setShowWhisperDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           <VisuallyHidden.Root>
-            <DialogTitle>AI 텍스트 변환</DialogTitle>
+                            <DialogTitle>AI 자막 · 텍스트 생성</DialogTitle>
           </VisuallyHidden.Root>
           <WhisperProcessor
             recordingId={recording.id}

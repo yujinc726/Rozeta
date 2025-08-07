@@ -275,12 +275,14 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
             // 오디오 없이 계속 진행
           }
           
-          // 3. PDF 파일들 업로드
+          // 3. PDF 파일들 업로드 및 크기 계산
           const pdfUrls: string[] = []
+          let totalPdfSize = 0
           for (const [index, pdf] of pdfFiles.entries()) {
             try {
               const pdfUrl = await storage.uploadPDF(pdf, recording.id)
               pdfUrls.push(pdfUrl)
+              totalPdfSize += pdf.size
             } catch (uploadError) {
               console.error(`PDF ${pdf.name} 업로드 실패:`, uploadError)
               toast.warning(`PDF 파일 "${pdf.name}" 업로드에 실패했습니다.`)
@@ -288,10 +290,12 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
             }
           }
           
-          // 4. 녹음 정보 업데이트
+          // 4. 녹음 정보 업데이트 (파일 크기 포함)
           await recordingsDb.update(recording.id, {
             audio_url: audioUrl,
-            pdf_url: pdfUrls.join(',') // 여러 PDF URL을 콤마로 구분하여 저장
+            pdf_url: pdfUrls.join(','), // 여러 PDF URL을 콤마로 구분하여 저장
+            file_size_bytes: audioBlob.size,
+            pdf_size_bytes: totalPdfSize
           })
           
           // 5. 슬라이드 기록 저장

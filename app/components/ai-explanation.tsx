@@ -51,7 +51,7 @@ export function SlideAIExplanation({
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
             <p className="text-sm text-gray-600">
-              Gemini 2.5 Pro가 슬라이드 {slideNumber}를 분석하고 있습니다...
+              Gemini 2.5 Pro가 전체 강의 내용을 분석하고 있습니다...
             </p>
           </div>
         </CardContent>

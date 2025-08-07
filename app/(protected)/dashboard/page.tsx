@@ -42,6 +42,11 @@ export default function DashboardPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [subscription, setSubscription] = useState<UserSubscription | null>(null)
   const [storageUsed, setStorageUsed] = useState(0)
+  const [storageUsedDetailed, setStorageUsedDetailed] = useState<{
+    audioBytes: number
+    pdfBytes: number
+    totalBytes: number
+  } | null>(null)
   const [aiMinutesUsed, setAiMinutesUsed] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [showPlansModal, setShowPlansModal] = useState(false)
@@ -81,17 +86,20 @@ export default function DashboardPage() {
 
         // 사용량 계산
         try {
-          const [storage, aiMinutes] = await Promise.all([
+          const [storage, storageDetailed, aiMinutes] = await Promise.all([
             usageSummary.calculateStorageUsage(),
+            usageSummary.calculateStorageUsageDetailed(),
             usageSummary.calculateAIMinutesUsage()
           ])
           
           setStorageUsed(storage)
+          setStorageUsedDetailed(storageDetailed)
           setAiMinutesUsed(aiMinutes)
         } catch (usageError) {
           console.error('사용량 계산 에러:', usageError)
           // 기본값 사용
           setStorageUsed(0)
+          setStorageUsedDetailed(null)
           setAiMinutesUsed(0)
         }
         
@@ -204,6 +212,7 @@ export default function DashboardPage() {
           <UsageTracker
             subscription={subscription}
             storageUsed={storageUsed}
+            storageUsedDetailed={storageUsedDetailed}
             aiMinutesUsed={aiMinutesUsed}
             onUpgrade={() => setShowPlansModal(true)}
             onViewDetails={() => router.push('/settings')}

@@ -11,7 +11,8 @@ import {
   Sparkles,
   Loader2,
   CheckCircle,
-  HardDrive
+  HardDrive,
+  Mic
 } from 'lucide-react'
 import { Recording, Subject } from '@/lib/supabase'
 
@@ -74,11 +75,27 @@ export default function RecentRecordings({
     }
   }
 
-  // 파일 크기 계산 (MB 단위)
-  const getFileSize = (recording: Recording) => {
+  // 파일 크기 계산 (MB 단위) - 오디오와 PDF 구분
+  const getAudioSize = (recording: Recording) => {
     const bytes = recording.file_size_bytes || 0
     if (bytes === 0) return '계산 중'
     const mb = (bytes / (1024 * 1024)).toFixed(1)
+    return `${mb}MB`
+  }
+
+  const getPdfSize = (recording: Recording) => {
+    const bytes = recording.pdf_size_bytes || 0
+    if (bytes === 0) return '없음'
+    const mb = (bytes / (1024 * 1024)).toFixed(1)
+    return `${mb}MB`
+  }
+
+  const getTotalSize = (recording: Recording) => {
+    const audioBytes = recording.file_size_bytes || 0
+    const pdfBytes = recording.pdf_size_bytes || 0
+    const totalBytes = audioBytes + pdfBytes
+    if (totalBytes === 0) return '계산 중'
+    const mb = (totalBytes / (1024 * 1024)).toFixed(1)
     return `${mb}MB`
   }
 
@@ -148,8 +165,12 @@ export default function RecentRecordings({
                       {formatDuration(recording.duration)}
                     </span>
                     <span className="flex items-center gap-1">
-                      <HardDrive className="h-3 w-3" />
-                      {getFileSize(recording)}
+                      <Mic className="h-3 w-3" />
+                      {getAudioSize(recording)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FileText className="h-3 w-3" />
+                      {getPdfSize(recording)}
                     </span>
                   </div>
                 </div>

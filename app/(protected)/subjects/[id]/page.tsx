@@ -19,7 +19,8 @@ import {
   HardDrive,
   Sparkles,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  FileText
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { subjects as subjectsDb, recordings as recordingsDb } from "@/lib/database"
@@ -154,10 +155,17 @@ export default function SubjectPage({ params }: SubjectPageProps) {
     return { icon: Clock, text: '미처리', color: 'text-gray-600 bg-gray-50' }
   }
 
-  // 파일 크기 계산 함수 (홈 화면과 동일)
-  const getFileSize = (recording: DbRecording) => {
+  // 파일 크기 계산 함수 - 오디오와 PDF 구분
+  const getAudioSize = (recording: DbRecording) => {
     const bytes = recording.file_size_bytes || 0
     if (bytes === 0) return '계산 중'
+    const mb = (bytes / (1024 * 1024)).toFixed(1)
+    return `${mb}MB`
+  }
+
+  const getPdfSize = (recording: DbRecording) => {
+    const bytes = recording.pdf_size_bytes || 0
+    if (bytes === 0) return '없음'
     const mb = (bytes / (1024 * 1024)).toFixed(1)
     return `${mb}MB`
   }
@@ -241,8 +249,12 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                               {recording.duration ? `${Math.floor(recording.duration / 60)}분` : '처리중'}
                             </span>
                             <span className="flex items-center gap-1">
-                              <HardDrive className="h-3 w-3" />
-                              {getFileSize(recording)}
+                              <Mic className="h-3 w-3" />
+                              {getAudioSize(recording)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <FileText className="h-3 w-3" />
+                              {getPdfSize(recording)}
                             </span>
                           </div>
                         </div>

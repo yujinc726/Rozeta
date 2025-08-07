@@ -705,6 +705,36 @@ export const usageSummary = {
     return totalBytes
   },
 
+  // 저장 공간 사용량을 타입별로 구분해서 계산
+  async calculateStorageUsageDetailed(): Promise<{
+    audioBytes: number
+    pdfBytes: number
+    totalBytes: number
+  }> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('로그인이 필요합니다.')
+
+    const { data: recordings, error: recordingsError } = await supabase
+      .from('recordings')
+      .select('file_size_bytes, pdf_size_bytes')
+      .eq('user_id', user.id)
+
+    if (recordingsError) throw recordingsError
+
+    let audioBytes = 0
+    let pdfBytes = 0
+    recordings?.forEach(rec => {
+      audioBytes += (rec.file_size_bytes || 0)
+      pdfBytes += (rec.pdf_size_bytes || 0)
+    })
+
+    return {
+      audioBytes,
+      pdfBytes,
+      totalBytes: audioBytes + pdfBytes
+    }
+  },
+
   // AI 변환 시간 사용량 계산 (분 단위)
   async calculateAIMinutesUsage(): Promise<number> {
     const { data: { user } } = await supabase.auth.getUser()
