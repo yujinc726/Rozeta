@@ -68,7 +68,6 @@ export default function RecordPage({ params }: RecordPageProps) {
     <RecordPageComponent 
       subjectName={subjectName} 
       subjectId={subjectId}
-      isSidebarCollapsed={false}
     />
   )
 }

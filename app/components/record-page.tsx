@@ -9,13 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Play, Pause, RotateCcw, Upload, FileText, Mic, CheckCircle2, ChevronLeft, ChevronRight, Clock, Edit, X, Square, ArrowLeft } from 'lucide-react'
+import { Play, Pause, RotateCcw, Upload, FileText, Mic, CheckCircle2, ChevronLeft, ChevronRight, Clock, Edit, X, Square, ArrowLeft, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { recordings as recordingsDb, recordEntries, storage } from '@/lib/database'
 import { toast } from 'sonner'
 import { getPdfPageCount, getPdfPageThumbnail } from '@/lib/pdf-utils'
 import { processRecordingWithProgress } from '@/lib/ai-processor'
+import { useSidebarContext } from '@/app/contexts/sidebar-context'
 
 interface SlideSync {
   id: string
@@ -30,10 +31,10 @@ interface SlideSync {
 interface RecordPageProps {
   subjectName: string
   subjectId: string
-  isSidebarCollapsed?: boolean
 }
 
-export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed = false }: RecordPageProps) {
+export default function RecordPage({ subjectName, subjectId }: RecordPageProps) {
+  const { isSidebarCollapsed } = useSidebarContext()
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   
@@ -58,6 +59,7 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
   const [processingProgress, setProcessingProgress] = useState(0)
   const [allSlideThumbnails, setAllSlideThumbnails] = useState<string[][]>([])
   const [slideMemo, setSlideMemo] = useState('')
+  const [uploadingPdfIndex, setUploadingPdfIndex] = useState<number | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -113,11 +115,13 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file && file.type === 'application/pdf') {
+      const newIndex = pdfFiles.length
       setPdfFiles(prev => [...prev, file])
-      setSelectedPdfIndex(pdfFiles.length)
+      setSelectedPdfIndex(newIndex)
+      setUploadingPdfIndex(newIndex) // 업로드 시작
       
       try {
-        // toast.info('PDF 파일을 분석하는 중...')
+        toast.info('PDF 파일을 분석하는 중...')
         const pageCount = await getPdfPageCount(file)
         setTotalSlides(pageCount)
         setCurrentSlideNumber(1)
@@ -133,12 +137,14 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
           }
         }
         setAllSlideThumbnails(prev => [...prev, thumbnails])
-        // toast.success(`${pageCount}개의 슬라이드를 감지했습니다.`)
+        toast.success(`${pageCount}개의 슬라이드를 감지했습니다.`)
+        setUploadingPdfIndex(null) // 업로드 완료
       } catch (error) {
         console.error('PDF 페이지 수 계산 실패:', error)
         toast.error('PDF 파일을 읽을 수 없습니다.')
         setPdfFiles(prev => prev.slice(0, -1))
         setTotalSlides(0)
+        setUploadingPdfIndex(null) // 업로드 실패
       }
     } else if (file) {
       toast.error('PDF 파일만 업로드 가능합니다.')
@@ -176,7 +182,10 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
       pausedTimeRef.current = 0
       pausedAtRef.current = 0
       
-      // 기존 기록 초기화 및 첫 슬라이드 자동 추가
+      // 기존 기록 초기화
+      setSlideSyncs([])
+      
+      // PDF가 있는 경우에만 첫 슬라이드 자동 추가
       if (selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex]) {
         const firstSlide: SlideSync = {
           id: Date.now().toString(),
@@ -493,6 +502,7 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
                         <button
                           key={index}
                           onClick={async () => {
+                            if (uploadingPdfIndex === index) return; // 업로드 중일 때 클릭 방지
                             setSelectedPdfIndex(index)
                             setCurrentSlideNumber(1)
                             try {
@@ -503,16 +513,23 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
                               setTotalSlides(0)
                             }
                           }}
+                          disabled={uploadingPdfIndex === index}
                           className={cn(
                             "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all",
-                            selectedPdfIndex === index 
+                            uploadingPdfIndex === index
+                              ? "bg-blue-100 text-blue-700 border border-blue-300 cursor-not-allowed"
+                              : selectedPdfIndex === index 
                               ? "bg-purple-100 text-purple-700 border border-purple-300" 
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
                           )}
                         >
-                          <FileText className="w-3 h-3" />
+                          {uploadingPdfIndex === index ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <FileText className="w-3 h-3" />
+                          )}
                           <span className="max-w-[120px] truncate">{file.name}</span>
-                          {selectedPdfIndex === index && (
+                          {selectedPdfIndex === index && uploadingPdfIndex !== index && (
                             <CheckCircle2 className="w-3 h-3" />
                           )}
                         </button>
@@ -589,7 +606,7 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b">
                       <tr>
-                        <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">강의안명</th>
+                        <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">강의안</th>
                         <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">슬라이드 번호</th>
                         <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">시작 시간</th>
                         <th className="text-left px-4 py-3 text-sm font-medium text-gray-700">종료 시간</th>
@@ -600,27 +617,35 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
                       {slideSyncs.map((sync, index) => (
                         <tr key={sync.id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-3">
-                            <input
-                              type="text"
+                            <select
                               value={sync.pdfFileName}
                               onChange={(e) => {
                                 const updated = [...slideSyncs]
                                 updated[index] = { ...updated[index], pdfFileName: e.target.value }
                                 setSlideSyncs(updated)
                               }}
-                              className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            />
+                              className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                            >
+                              <option value="">미선택</option>
+                              {pdfFiles.map((file, fileIndex) => (
+                                <option key={fileIndex} value={file.name}>
+                                  {file.name}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-4 py-3">
                             <input
                               type="number"
-                              value={sync.slideNumber}
+                              value={sync.slideNumber || ''}
                               onChange={(e) => {
                                 const updated = [...slideSyncs]
-                                updated[index] = { ...updated[index], slideNumber: parseInt(e.target.value) || 1 }
+                                const value = e.target.value === '' ? '' : parseInt(e.target.value)
+                                updated[index] = { ...updated[index], slideNumber: value }
                                 setSlideSyncs(updated)
                               }}
                               className="w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              min="1"
                             />
                           </td>
                           <td className="px-4 py-3">
@@ -712,7 +737,6 @@ export default function RecordPage({ subjectName, subjectId, isSidebarCollapsed 
                         <Button
                           onClick={startRecording}
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                          disabled={pdfFiles.length === 0}
                         >
                           <Mic className="w-5 h-5 mr-2" />
                           녹음 시작
