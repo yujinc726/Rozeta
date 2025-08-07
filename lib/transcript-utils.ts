@@ -171,7 +171,7 @@ function pad(num: number, size: number = 2): string {
 }
 
 // 자막 정리 함수 - 단어 개수 기반으로 적절한 길이로 분할
-export function arrangeSubtitles(srtContent: string): string {
+export function arrangeSubtitles(srtContent: string, wordsPerSubtitle: number = 12): string {
   const blocks = srtContent.trim().split('\n\n');
   const arrangedBlocks: string[] = [];
   
@@ -179,7 +179,7 @@ export function arrangeSubtitles(srtContent: string): string {
   let currentStartTime: string | null = null;
   let currentEndTime: string = '';
   let index = 1;
-  const WORDS_PER_SUBTITLE = 8; // 자막당 대략 8개 단어
+  const WORDS_PER_SUBTITLE = wordsPerSubtitle; // 자막당 단어 수
 
   blocks.forEach(block => {
     const lines = block.split('\n');
@@ -229,7 +229,7 @@ export function arrangeSubtitles(srtContent: string): string {
 }
 
 // 단어 단위 자막을 적절한 구문 단위로 그룹화하는 함수
-export function groupWordsIntoPhases(wordLevelSrt: string, wordsPerPhrase: number = 6): string {
+export function groupWordsIntoPhases(wordLevelSrt: string, wordsPerPhrase: number = 12): string {
   const entries = parseSRT(wordLevelSrt);
   if (entries.length === 0) return '';
   

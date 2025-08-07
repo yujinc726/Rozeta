@@ -20,6 +20,7 @@ import { extractTranscriptBySlides, getCurrentSubtitle } from "@/lib/transcript-
 import { useSidebarContext } from "@/app/contexts/sidebar-context"
 import { SlideAIExplanation } from "./ai-explanation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useSubtitleSettings } from "@/app/contexts/subtitle-settings-context"
 
 interface RecordDetailProps {
   recording: DbRecording
@@ -29,6 +30,7 @@ interface RecordDetailProps {
 
 export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplanation }: RecordDetailProps) {
   const { isSidebarCollapsed } = useSidebarContext()
+  const { settings: subtitleSettings } = useSubtitleSettings()
   const router = useRouter()
   const [recordEntriesList, setRecordEntriesList] = useState<RecordEntry[]>([])
   const [editingEntry, setEditingEntry] = useState<RecordEntry | null>(null)
@@ -1183,43 +1185,21 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
         <div 
           className={`fixed bottom-24 left-1/2 transform -translate-x-1/2 w-full max-w-5xl px-8 z-50 transition-all duration-300 ease-out`}
         >
-          <div className="relative">
-            {/* 소프트 그림자 효과 */}
-            <div className="absolute inset-0 bg-black/40 rounded-2xl blur-2xl transform scale-110"></div>
-            
-            {/* 메인 자막 컨테이너 - 더 깔끔하고 현대적인 디자인 */}
-            <div className="relative">
-              {/* 배경 레이어 - 투명도를 높인 배경 */}
-              <div className="absolute inset-0 bg-gray-950/70 backdrop-blur-md rounded-2xl"></div>
-              
-              {/* 서브틀한 보더 효과 */}
-              <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-white/10 rounded-2xl"></div>
-              
-              {/* 컨텐츠 */}
-              <div className="relative px-6 py-3">
-                {/* 자막 텍스트 - 가독성 최적화 */}
-                <p className="text-lg leading-normal text-center font-normal">
-                  {/* 메인 텍스트 - 높은 대비의 흰색 */}
-                  <span className="text-white/95 tracking-wide" style={{
-                    textShadow: '0 2px 8px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.8)',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    fontWeight: 400,
-                    letterSpacing: '0.02em'
-                  }}>
-                    {currentSubtitle}
-                  </span>
-                </p>
-                
-                {/* 재생 인디케이터 - 미니멀한 애니메이션 */}
-                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex items-center gap-1">
-                  <div className="w-1 h-1 bg-white/60 rounded-full animate-pulse"></div>
-                  <div className="w-1 h-1 bg-white/60 rounded-full animate-pulse animation-delay-200"></div>
-                  <div className="w-1 h-1 bg-white/60 rounded-full animate-pulse animation-delay-400"></div>
-                </div>
-              </div>
-              
-              {/* 최상단 악센트 라인 - 서브틀한 브랜드 컬러 */}
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+          <div className="text-center">
+            <div 
+              className="inline-block px-4 py-2 rounded-lg shadow-lg"
+              style={{
+                backgroundColor: `${subtitleSettings.backgroundColor}${Math.round(subtitleSettings.backgroundOpacity * 2.55).toString(16).padStart(2, '0')}`,
+                color: subtitleSettings.textColor,
+                fontSize: `${subtitleSettings.fontSize}px`,
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                lineHeight: 1.4,
+                fontWeight: 400,
+                letterSpacing: '0.02em'
+              }}
+            >
+              {currentSubtitle}
             </div>
           </div>
         </div>

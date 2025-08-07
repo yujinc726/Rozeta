@@ -9,6 +9,7 @@ import type { Subject as DbSubject } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { SidebarProvider, useSidebarContext } from "@/app/contexts/sidebar-context"
+import { SubtitleSettingsProvider } from "@/app/contexts/subtitle-settings-context"
 
 function ProtectedLayoutContent({
   children,
@@ -205,9 +206,11 @@ export default function ProtectedLayout({
 }) {
   return (
     <SidebarProvider>
-      <ProtectedLayoutContent>
-        {children}
-      </ProtectedLayoutContent>
+      <SubtitleSettingsProvider>
+        <ProtectedLayoutContent>
+          {children}
+        </ProtectedLayoutContent>
+      </SubtitleSettingsProvider>
     </SidebarProvider>
   )
 }

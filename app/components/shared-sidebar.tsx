@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Plus, FileAudio, Folder, Settings, ArrowLeft, ChevronLeft, ChevronRight, Menu, MoreHorizontal, Edit, Trash2, Home, LogOut, User, Sparkles } from "lucide-react"
+import SettingsModal from "@/app/components/settings-modal"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/supabase"
 import { profiles } from "@/lib/database"
@@ -72,6 +73,7 @@ export default function SharedSidebar({
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<{ full_name: string | null, email: string } | null>(null)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -417,7 +419,7 @@ export default function SharedSidebar({
               )}
             </DropdownMenuTrigger>
             <DropdownMenuContent align={isCollapsed ? "center" : "end"} className="w-56">
-              <DropdownMenuItem onClick={onOpenSettings}>
+              <DropdownMenuItem onClick={() => setIsSettingsOpen(true)}>
                 <Settings className="w-4 h-4 mr-2" />
                 설정
               </DropdownMenuItem>
@@ -490,6 +492,12 @@ export default function SharedSidebar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        open={isSettingsOpen} 
+        onOpenChange={setIsSettingsOpen} 
+      />
       </div>
     </TooltipProvider>
   )

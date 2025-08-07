@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSrtContent, arrangeSubtitles, groupWordsIntoPhases } from '@/lib/transcript-utils';
+import { settingsDb } from '@/lib/database';
 
 const RUNPOD_ENDPOINT_ID = process.env.RUNPOD_ENDPOINT_ID;
 const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY;
@@ -116,8 +117,19 @@ export async function POST(request: NextRequest) {
     
     const rawSubtitles = createSrtContent(wordSegments.length > 0 ? wordSegments : segments, isWordLevel);
     
+    // 사용자 자막 설정 가져오기
+    let maxWords = 12; // 기본값
+    try {
+      const settings = await settingsDb.get();
+      if (settings?.subtitles?.max_words) {
+        maxWords = settings.subtitles.max_words;
+      }
+    } catch (error) {
+      console.warn('Failed to load subtitle settings, using default:', error);
+    }
+
     // 단어 단위 자막을 적절한 구문 단위로 그룹화
-    const phrasedSubtitles = isWordLevel ? groupWordsIntoPhases(rawSubtitles, 12) : arrangeSubtitles(rawSubtitles);
+    const phrasedSubtitles = isWordLevel ? groupWordsIntoPhases(rawSubtitles, maxWords) : arrangeSubtitles(rawSubtitles, maxWords);
 
     return NextResponse.json({
       success: true,
