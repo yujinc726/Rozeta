@@ -783,7 +783,10 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">← → 키로 이동</span>
               </CardTitle>
               <CardDescription>
-                {currentEntry.material_name}
+                {currentEntry.material_name === '미선택' ? 
+                  '미선택 (강의안 없음)' : 
+                  currentEntry.material_name
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -798,6 +801,44 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                           <p className="text-xs text-gray-500">로딩 중...</p>
                       </div>
                     </div>
+                  ) : currentEntry.material_name === '미선택' ? (
+                    <>
+                      {/* 미선택 상태 표시 */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50/80 to-slate-50/80 dark:from-gray-800/20 dark:to-slate-800/20">
+                        <div className="text-center space-y-3">
+                          <FileText className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" />
+                          <div>
+                            <p className="text-lg font-medium text-gray-600 dark:text-gray-400">미선택 구간</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-500">강의안 없이 진행된 구간입니다</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 슬라이드 네비게이션 버튼 */}
+                      <div className="absolute inset-y-0 left-0 flex items-center">
+                        <Button
+                          onClick={goToPreviousSlide}
+                          disabled={getCurrentEntryIndex() <= 0}
+                          size="icon"
+                          variant="ghost"
+                            className="ml-1 bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </Button>
+                      </div>
+                      
+                      <div className="absolute inset-y-0 right-0 flex items-center">
+                        <Button
+                          onClick={goToNextSlide}
+                          disabled={getCurrentEntryIndex() >= recordEntriesList.length - 1}
+                          size="icon"
+                          variant="ghost"
+                            className="mr-1 bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </Button>
+                      </div>
+                    </>
                   ) : currentSlideImage ? (
                     <>
                       <img

@@ -185,20 +185,16 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
       // 기존 기록 초기화
       setSlideSyncs([])
       
-      // PDF가 있는 경우에만 첫 슬라이드 자동 추가
-      if (selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex]) {
-        const firstSlide: SlideSync = {
-          id: Date.now().toString(),
-          pdfFileName: pdfFiles[selectedPdfIndex].name,
-          slideNumber: currentSlideNumber,
-          startTime: '00:00:00.000',
-          recordingTime: 0,
-          memo: ''
-        }
-        setSlideSyncs([firstSlide])
-      } else {
-        setSlideSyncs([])
+      // 항상 첫 번째 구간 자동 추가 (PDF 선택 여부와 관계없이)
+      const firstSlide: SlideSync = {
+        id: Date.now().toString(),
+        pdfFileName: selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex] ? pdfFiles[selectedPdfIndex].name : '',
+        slideNumber: selectedPdfIndex >= 0 ? currentSlideNumber : 0, // 미선택인 경우 0으로 설정
+        startTime: '00:00:00.000',
+        recordingTime: 0,
+        memo: ''
       }
+      setSlideSyncs([firstSlide])
       
       // toast.success('녹음이 시작되었습니다!')
     } catch (error: any) {
@@ -269,69 +265,118 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
         setIsSaving(true)
         
         try {
+          // 사전 검증
+          if (!user?.id) {
+            throw new Error('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.')
+          }
+          
+          if (!subjectId) {
+            throw new Error('과목 정보가 없습니다.')
+          }
+          
+          if (!recordingTitle.trim()) {
+            throw new Error('녹음 제목이 없습니다.')
+          }
+          
+          if (recordingTime <= 0) {
+            throw new Error('녹음 시간이 유효하지 않습니다.')
+          }
+          
+          if (!audioBlob || audioBlob.size === 0) {
+            throw new Error('녹음된 오디오 데이터가 없습니다.')
+          }
+          
           console.log('저장 시작', {
             subjectId,
             recordingTitle,
-            userId: user?.id,
+            userId: user.id,
             duration: Math.floor(recordingTime / 1000),
             slideSyncsCount: updatedSlideSyncs.length,
-            pdfFilesCount: pdfFiles.length
+            pdfFilesCount: pdfFiles.length,
+            audioBlobSize: audioBlob.size
           })
           
           // 1. 녹음 정보를 데이터베이스에 저장
+          console.log('1단계: 녹음 정보 저장 시작')
           const recording = await recordingsDb.create(
             subjectId,
             recordingTitle,
             Math.floor(recordingTime / 1000) // seconds
           )
+          console.log('1단계 완료: 녹음 정보 저장됨, ID:', recording.id)
           
           // 2. 오디오 파일 업로드
-          console.log('녹음 데이터 저장 완료, 오디오 업로드 시작...')
+          console.log('2단계: 오디오 파일 업로드 시작...')
           const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' })
           let audioUrl = ''
           
           try {
             audioUrl = await storage.uploadAudio(audioFile, recording.id)
+            console.log('2단계 완료: 오디오 업로드 성공')
           } catch (uploadError) {
-            console.error('오디오 업로드 실패, 녹음 데이터는 저장됨:', uploadError)
+            console.error('2단계 실패: 오디오 업로드 실패, 녹음 데이터는 저장됨:', uploadError)
             toast.warning('녹음은 저장되었지만 오디오 파일 업로드에 실패했습니다. 나중에 다시 시도해주세요.')
             // 오디오 없이 계속 진행
           }
           
           // 3. PDF 파일들 업로드 및 크기 계산
+          console.log('3단계: PDF 파일 업로드 시작, 파일 수:', pdfFiles.length)
           const pdfUrls: string[] = []
           let totalPdfSize = 0
           for (const [index, pdf] of pdfFiles.entries()) {
             try {
+              console.log(`PDF ${index + 1}/${pdfFiles.length} 업로드 중:`, pdf.name)
               const pdfUrl = await storage.uploadPDF(pdf, recording.id)
               pdfUrls.push(pdfUrl)
               totalPdfSize += pdf.size
+              console.log(`PDF ${index + 1} 업로드 완료`)
             } catch (uploadError) {
               console.error(`PDF ${pdf.name} 업로드 실패:`, uploadError)
               toast.warning(`PDF 파일 "${pdf.name}" 업로드에 실패했습니다.`)
               // PDF 없이 계속 진행
             }
           }
+          console.log('3단계 완료: 모든 PDF 업로드 완료')
           
           // 4. 녹음 정보 업데이트 (파일 크기 포함)
+          console.log('4단계: 녹음 정보 업데이트 시작')
           await recordingsDb.update(recording.id, {
             audio_url: audioUrl,
             pdf_url: pdfUrls.join(','), // 여러 PDF URL을 콤마로 구분하여 저장
             file_size_bytes: audioBlob.size,
             pdf_size_bytes: totalPdfSize
           })
+          console.log('4단계 완료: 녹음 정보 업데이트됨')
           
           // 5. 슬라이드 기록 저장
-          for (const sync of updatedSlideSyncs) {
-            await recordEntries.create(
-              recording.id,
-              sync.pdfFileName,
-              sync.slideNumber,
-              sync.startTime,
-              sync.endTime || '',
-              sync.memo || ''
-            )
+          console.log('슬라이드 기록 저장 시작:', updatedSlideSyncs.length, '개 항목')
+          for (const [index, sync] of updatedSlideSyncs.entries()) {
+            try {
+              console.log(`슬라이드 기록 ${index + 1}/${updatedSlideSyncs.length} 저장:`, {
+                recordingId: recording.id,
+                pdfFileName: sync.pdfFileName,
+                slideNumber: sync.slideNumber,
+                startTime: sync.startTime,
+                endTime: sync.endTime || '',
+                memo: sync.memo || ''
+              })
+              
+              await recordEntries.create(
+                recording.id,
+                sync.pdfFileName || '미선택', // 빈 문자열 대신 '미선택' 사용
+                sync.slideNumber === 0 ? 1 : sync.slideNumber, // 0일 때 1로 변경
+                sync.startTime,
+                sync.endTime || '',
+                sync.memo || ''
+              )
+              
+              console.log(`슬라이드 기록 ${index + 1} 저장 완료`)
+            } catch (entryError) {
+              console.error(`슬라이드 기록 ${index + 1} 저장 실패:`, entryError)
+              throw new Error(`슬라이드 기록 ${index + 1} 저장 중 오류가 발생했습니다: ${entryError}`)
+            }
           }
+          console.log('모든 슬라이드 기록 저장 완료')
           
           // toast.success('녹음이 성공적으로 저장되었습니다!')
           
@@ -341,16 +386,51 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
           }, 1500)
           
         } catch (error) {
-          console.error('저장 실패:', error)
+          console.error('저장 실패 상세:', {
+            error,
+            errorType: typeof error,
+            errorConstructor: error?.constructor?.name,
+            errorMessage: error?.message,
+            errorStack: error?.stack,
+            errorString: String(error),
+            errorJSON: JSON.stringify(error),
+            recordingData: {
+              subjectId,
+              recordingTitle,
+              userId: user?.id,
+              duration: Math.floor(recordingTime / 1000),
+              slideSyncsCount: updatedSlideSyncs.length,
+              pdfFilesCount: pdfFiles.length
+            }
+          })
+          
+          let errorMessage = '저장 중 알 수 없는 오류가 발생했습니다.'
+          
           if (error instanceof Error) {
             if (error.message.includes('Invalid URL')) {
-              toast.error('Supabase 설정이 필요합니다. .env.local 파일을 확인해주세요.')
-            } else {
-              toast.error(`저장 중 오류가 발생했습니다: ${error.message}`)
+              errorMessage = 'Supabase 설정이 필요합니다. .env.local 파일을 확인해주세요.'
+            } else if (error.message.includes('auth')) {
+              errorMessage = '인증 오류가 발생했습니다. 다시 로그인해주세요.'
+            } else if (error.message.includes('network') || error.message.includes('fetch')) {
+              errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.'
+            } else if (error.message) {
+              errorMessage = `저장 중 오류가 발생했습니다: ${error.message}`
             }
-          } else {
-            toast.error('저장 중 알 수 없는 오류가 발생했습니다.')
+          } else if (typeof error === 'object' && error !== null) {
+            // Supabase 에러 등의 경우
+            const errorObj = error as any
+            if (errorObj.message) {
+              errorMessage = `저장 중 오류가 발생했습니다: ${errorObj.message}`
+            } else if (errorObj.error) {
+              errorMessage = `저장 중 오류가 발생했습니다: ${errorObj.error}`
+            } else if (errorObj.details) {
+              errorMessage = `저장 중 오류가 발생했습니다: ${errorObj.details}`
+            }
+          } else if (typeof error === 'string') {
+            errorMessage = `저장 중 오류가 발생했습니다: ${error}`
           }
+          
+          toast.error(errorMessage)
         } finally {
           setIsSaving(false)
           setProcessingStep('')
@@ -366,11 +446,6 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
       return
     }
     
-    if (selectedPdfIndex < 0 || !pdfFiles[selectedPdfIndex]) {
-      // toast.warning('PDF 파일을 선택해주세요.')
-      return
-    }
-    
     const currentTime = formatTime(recordingTime).display
     const lastSync = slideSyncs[slideSyncs.length - 1]
     
@@ -383,10 +458,10 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
         memo: slideMemo || lastSync.memo
       }
       setSlideSyncs(updatedSyncs)
-      // toast.success(`슬라이드 ${lastSync.slideNumber} 종료 시간 기록`)
       
-      // 다음 슬라이드가 있으면 자동으로 추가
-      if (currentSlideNumber < totalSlides) {
+      // 다음 구간 자동 시작 (PDF 선택/미선택 모두)
+      if (selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex] && currentSlideNumber < totalSlides) {
+        // PDF 선택된 경우: 다음 슬라이드로 이동
         setCurrentSlideNumber(prev => prev + 1)
         const newSync: SlideSync = {
           id: Date.now().toString(),
@@ -397,11 +472,24 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
           memo: ''
         }
         setSlideSyncs([...updatedSyncs, newSync])
+      } else {
+        // 미선택 상태 또는 마지막 슬라이드인 경우: 동일한 설정으로 다음 구간 시작
+        const newSync: SlideSync = {
+          id: Date.now().toString(),
+          pdfFileName: selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex] ? pdfFiles[selectedPdfIndex].name : '',
+          slideNumber: selectedPdfIndex >= 0 ? currentSlideNumber : 0, // 미선택인 경우 0으로 설정
+          startTime: currentTime,
+          recordingTime: recordingTime,
+          memo: ''
+        }
+        setSlideSyncs([...updatedSyncs, newSync])
       }
       
       setSlideMemo('')
     } else {
-      // toast.info('기록할 슬라이드가 없습니다.')
+      // 이 블록은 첫 번째 구간에서만 실행되어야 하는데, startRecording에서 이미 첫 번째 구간을 생성하므로
+      // 이 블록이 실행되는 경우는 없어야 함. 하지만 안전을 위해 로그 출력
+      console.warn('markCurrentSlide: 예상하지 못한 상황 - slideSyncs가 비어있거나 모든 구간이 완료됨')
     }
   }
 
@@ -658,18 +746,22 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                             </select>
                           </td>
                           <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={sync.slideNumber || ''}
-                              onChange={(e) => {
-                                const updated = [...slideSyncs]
-                                const value = e.target.value === '' ? '' : parseInt(e.target.value)
-                                updated[index] = { ...updated[index], slideNumber: value }
-                                setSlideSyncs(updated)
-                              }}
-                              className="w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-                              min="1"
-                            />
+                            {sync.slideNumber === 0 ? (
+                              <span className="text-gray-500 text-sm italic">미선택</span>
+                            ) : (
+                              <input
+                                type="number"
+                                value={sync.slideNumber || ''}
+                                onChange={(e) => {
+                                  const updated = [...slideSyncs]
+                                  const value = e.target.value === '' ? '' : parseInt(e.target.value)
+                                  updated[index] = { ...updated[index], slideNumber: value }
+                                  setSlideSyncs(updated)
+                                }}
+                                className="w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                min="1"
+                              />
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <input

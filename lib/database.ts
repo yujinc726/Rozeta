@@ -189,6 +189,13 @@ export const recordings = {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('로그인이 필요합니다.')
     
+    console.log('recordings.create 호출:', {
+      subjectId,
+      title,
+      userId: user.id,
+      duration
+    })
+    
     const { data, error } = await supabase
       .from('recordings')
       .insert({
@@ -200,12 +207,41 @@ export const recordings = {
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('recordings.create 에러 상세:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        error: error
+      })
+      
+      if (error.message?.includes('Failed to fetch')) {
+        throw new Error('Supabase 연결 실패: URL을 확인해주세요.')
+      } else if (error.code === '42P01') {
+        throw new Error('recordings 테이블이 존재하지 않습니다. 데이터베이스 스키마를 확인해주세요.')
+      } else if (error.code === '42501') {
+        throw new Error('권한 오류: RLS 정책을 확인해주세요.')
+      } else if (error.code === '23503') {
+        throw new Error('외래키 제약 조건 위반: 존재하지 않는 subject_id입니다.')
+      } else if (error.code === '23502') {
+        throw new Error('필수 필드가 누락되었습니다.')
+      }
+      
+      throw new Error(`녹음 생성 실패: ${error.message || JSON.stringify(error)}`)
+    }
+    
+    console.log('recordings.create 성공:', data)
     return data
   },
 
   // 녹음 정보 업데이트
   async update(id: string, updates: Partial<Recording>): Promise<Recording> {
+    console.log('recordings.update 호출:', {
+      id,
+      updates
+    })
+    
     const { data, error } = await supabase
       .from('recordings')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -213,7 +249,31 @@ export const recordings = {
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('recordings.update 에러 상세:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        error: error
+      })
+      
+      if (error.message?.includes('Failed to fetch')) {
+        throw new Error('Supabase 연결 실패: URL을 확인해주세요.')
+      } else if (error.code === '42P01') {
+        throw new Error('recordings 테이블이 존재하지 않습니다. 데이터베이스 스키마를 확인해주세요.')
+      } else if (error.code === '42501') {
+        throw new Error('권한 오류: RLS 정책을 확인해주세요.')
+      } else if (error.code === '23503') {
+        throw new Error('외래키 제약 조건 위반: 존재하지 않는 데이터를 참조하고 있습니다.')
+      } else if (error.code === 'PGRST116') {
+        throw new Error('업데이트할 녹음을 찾을 수 없습니다.')
+      }
+      
+      throw new Error(`녹음 업데이트 실패: ${error.message || JSON.stringify(error)}`)
+    }
+    
+    console.log('recordings.update 성공:', data)
     return data
   },
 
@@ -263,6 +323,15 @@ export const recordEntries = {
     endTime: string,
     memo?: string
   ): Promise<RecordEntry> {
+    console.log('recordEntries.create 호출:', {
+      recordingId,
+      materialName,
+      slideNumber,
+      startTime,
+      endTime,
+      memo
+    })
+    
     const { data, error } = await supabase
       .from('record_entries')
       .insert({
@@ -276,7 +345,31 @@ export const recordEntries = {
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('recordEntries.create 에러 상세:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        error: error
+      })
+      
+      if (error.message?.includes('Failed to fetch')) {
+        throw new Error('Supabase 연결 실패: URL을 확인해주세요.')
+      } else if (error.code === '42P01') {
+        throw new Error('record_entries 테이블이 존재하지 않습니다. 데이터베이스 스키마를 확인해주세요.')
+      } else if (error.code === '42501') {
+        throw new Error('권한 오류: RLS 정책을 확인해주세요.')
+      } else if (error.code === '23503') {
+        throw new Error('외래키 제약 조건 위반: 존재하지 않는 recording_id입니다.')
+      } else if (error.code === '23502') {
+        throw new Error('필수 필드가 누락되었습니다.')
+      }
+      
+      throw new Error(`기록 엔트리 생성 실패: ${error.message || JSON.stringify(error)}`)
+    }
+    
+    console.log('recordEntries.create 성공:', data)
     return data
   },
 
