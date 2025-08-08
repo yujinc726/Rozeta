@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
-import { recordings, recordEntries } from "@/lib/database"
 import { createClient } from "@supabase/supabase-js"
 
 // Gemini API 키 확인
@@ -22,31 +21,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 사용자 인증 토큰 확인
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      )
+    // 서비스 역할 키 확인 (백그라운드 작업용)
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceRoleKey) {
+      console.warn('SUPABASE_SERVICE_ROLE_KEY is not set. Background tasks will use fallback method.')
     }
 
-    const token = authHeader.split(' ')[1]
+    const contentType = request.headers.get('content-type') || ''
+    let recordingId: string
+    let regenerate: boolean = false
+    let customPrompt: string = ''
 
-    // 인증된 Supabase 클라이언트 생성
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+    // JSON 방식 요청 처리 (백그라운드 작업)
+    if (contentType.includes('application/json')) {
+      const json = await request.json()
+      recordingId = json.recording_id
+      customPrompt = json.custom_prompt || ''
+      regenerate = json.regenerate || false
+      
+      console.log('📝 AI 분석 요청:', {
+        recordingId,
+        customPrompt: customPrompt || '(없음)',
+        regenerate,
+        timestamp: new Date().toISOString()
+      })
+    } else {
+      // 기존 방식 (인증 필요)
+      const authHeader = request.headers.get('authorization')
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        )
       }
-    )
-
-    const { recordingId, regenerate = false } = await request.json()
+      const requestData = await request.json()
+      recordingId = requestData.recordingId
+      regenerate = requestData.regenerate || false
+    }
 
     if (!recordingId) {
       return NextResponse.json(
@@ -55,36 +66,100 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 토큰을 사용하여 인증된 Supabase 요청
-    const { data, error } = await supabase
-      .from('recordings')
-      .select('*')
-      .eq('id', recordingId)
-      .single()
+    // 백그라운드 작업의 경우 서비스 역할 키 사용, 아니면 기존 인증 사용
+    let recording
+    let entries
 
-    if (error || !data) {
-      console.error('Recording query error:', error)
-      return NextResponse.json(
-        { error: "Recording not found or access denied" },
-        { status: 404 }
+    if (contentType.includes('application/json')) {
+      // 백그라운드 작업 - 서비스 역할 키로 직접 데이터베이스 접근
+      if (!serviceRoleKey) {
+        return NextResponse.json(
+          { error: "Server configuration error: Service role key not set" },
+          { status: 500 }
+        )
+      }
+
+      const serviceSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceRoleKey
       )
-    }
 
-    const recording = data
+      const { data: recordingData, error: recordingError } = await serviceSupabase
+        .from('recordings')
+        .select('*')
+        .eq('id', recordingId)
+        .single()
 
-    // 슬라이드 엔트리 가져오기 (인증된 클라이언트 사용)
-    const { data: entries, error: entriesError } = await supabase
-      .from('record_entries')
-      .select('*')
-      .eq('recording_id', recordingId)
-      .order('created_at', { ascending: true })
+      if (recordingError || !recordingData) {
+        console.error('Recording query error:', recordingError)
+        return NextResponse.json(
+          { error: "Recording not found" },
+          { status: 404 }
+        )
+      }
+      recording = recordingData
 
-    if (entriesError) {
-      console.error('Failed to get record entries:', entriesError)
-      return NextResponse.json(
-        { error: "Failed to load slide entries" },
-        { status: 500 }
+      const { data: entriesData, error: entriesError } = await serviceSupabase
+        .from('record_entries')
+        .select('*')
+        .eq('recording_id', recordingId)
+        .order('created_at', { ascending: true })
+
+      if (entriesError) {
+        console.error('Failed to get record entries:', entriesError)
+        return NextResponse.json(
+          { error: "Failed to load slide entries" },
+          { status: 500 }
+        )
+      }
+      entries = entriesData || []
+    } else {
+      // 기존 인증 방식
+      const token = request.headers.get('authorization')?.split(' ')[1]
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
       )
+
+      const { data, error } = await supabase
+        .from('recordings')
+        .select('*')
+        .eq('id', recordingId)
+        .single()
+
+      if (error || !data) {
+        console.error('Recording query error:', error)
+        return NextResponse.json(
+          { error: "Recording not found or access denied" },
+          { status: 404 }
+        )
+      }
+
+      recording = data
+
+      // 슬라이드 엔트리 가져오기 (인증된 클라이언트 사용)
+      const { data: entriesData, error: entriesError } = await supabase
+        .from('record_entries')
+        .select('*')
+        .eq('recording_id', recordingId)
+        .order('created_at', { ascending: true })
+
+      if (entriesError) {
+        console.error('Failed to get record entries:', entriesError)
+        return NextResponse.json(
+          { error: "Failed to load slide entries" },
+          { status: 500 }
+        )
+      }
+
+      entries = entriesData
     }
 
     // 이미 AI 분석이 되어있고 재생성이 아닌 경우
@@ -92,6 +167,7 @@ export async function POST(request: NextRequest) {
       const hasAllExplanations = entries.every(e => e.ai_explanation && Object.keys(e.ai_explanation).length > 0)
       
       if (hasAllExplanations) {
+        console.log('📌 기존 AI 분석 결과가 있어서 재사용합니다.')
         return NextResponse.json({
           success: true,
           message: "AI analysis already exists",
@@ -99,6 +175,10 @@ export async function POST(request: NextRequest) {
           entries: entries
         })
       }
+    }
+    
+    if (regenerate) {
+      console.log('🔄 재생성 요청이므로 새로운 AI 분석을 시작합니다.')
     }
     if (entries.length === 0) {
       return NextResponse.json(
@@ -153,6 +233,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Gemini 프롬프트 생성
+    console.log('🔍 사용자 프롬프트:', customPrompt ? `"${customPrompt}"` : '없음')
+    
     const prompt = `
 당신은 대학 강의를 듣는 학생을 돕는 AI 튜터입니다.
 전체 ${lectureData.totalSlides}개 슬라이드의 강의 자료와 녹음 내용을 제공합니다.
@@ -170,6 +252,8 @@ ${lectureData.slides.map(slide => `
 - 교수님 설명: ${slide.transcript}
 - 학생 메모: ${slide.memo || '없음'}
 `).join('\n')}
+
+${customPrompt ? `\n🎯 추가 요청사항:\n${customPrompt}\n위 요청사항을 반드시 반영하여 분석해주세요.\n` : ''}
 
 다음 JSON 형식으로 응답해주세요:
 {
@@ -227,26 +311,31 @@ ${lectureData.slides.map(slide => `
       )
     }
 
-    // 데이터베이스 업데이트 (인증된 클라이언트 사용)
-    const updatePromises = []
+    // 데이터베이스 업데이트
+    let updatedRecording
+    let updatedEntries
 
-    // 1. 전체 강의 분석 결과 저장
-    updatePromises.push(
-      supabase
+    if (contentType.includes('application/json')) {
+      // 백그라운드 작업 - 서비스 역할 키로 직접 데이터베이스 접근
+      const serviceSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceRoleKey!
+      )
+
+      // 전체 강의 분석 결과 저장
+      await serviceSupabase
         .from('recordings')
         .update({
           ai_lecture_overview: analysisResult.lecture_overview,
           ai_analyzed_at: new Date().toISOString()
         })
         .eq('id', recordingId)
-    )
 
-    // 2. 각 슬라이드별 AI 설명 저장
-    for (const slideAnalysis of analysisResult.slides) {
-      const entry = entries.find(e => e.slide_number === slideAnalysis.slide_number)
-      if (entry) {
-        updatePromises.push(
-          supabase
+      // 각 슬라이드별 AI 설명 저장
+      for (const slideAnalysis of analysisResult.slides) {
+        const entry = entries.find(e => e.slide_number === slideAnalysis.slide_number)
+        if (entry) {
+          await serviceSupabase
             .from('record_entries')
             .update({
               ai_explanation: slideAnalysis.ai_explanation,
@@ -254,33 +343,97 @@ ${lectureData.slides.map(slide => `
               ai_model: "gemini-2.5-pro"
             })
             .eq('id', entry.id)
-        )
+        }
       }
-    }
 
-    // 모든 업데이트 실행
-    const updateResults = await Promise.all(updatePromises)
-    
-    // 업데이트 에러 체크
-    for (const result of updateResults) {
-      if (result.error) {
-        console.error('Update error:', result.error)
-        throw new Error('Failed to save AI analysis results')
+      // 업데이트된 데이터 가져오기
+      const { data: updatedRecordingData } = await serviceSupabase
+        .from('recordings')
+        .select('*')
+        .eq('id', recordingId)
+        .single()
+
+      const { data: updatedEntriesData } = await serviceSupabase
+        .from('record_entries')
+        .select('*')
+        .eq('recording_id', recordingId)
+        .order('created_at', { ascending: true })
+
+      updatedRecording = updatedRecordingData
+      updatedEntries = updatedEntriesData
+      
+    } else {
+      // 기존 인증 방식 - supabase 클라이언트 사용
+      const token = request.headers.get('authorization')?.split(' ')[1]
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      )
+
+      const updatePromises = []
+
+      // 1. 전체 강의 분석 결과 저장
+      updatePromises.push(
+        supabase
+          .from('recordings')
+          .update({
+            ai_lecture_overview: analysisResult.lecture_overview,
+            ai_analyzed_at: new Date().toISOString()
+          })
+          .eq('id', recordingId)
+      )
+
+      // 2. 각 슬라이드별 AI 설명 저장
+      for (const slideAnalysis of analysisResult.slides) {
+        const entry = entries.find(e => e.slide_number === slideAnalysis.slide_number)
+        if (entry) {
+          updatePromises.push(
+            supabase
+              .from('record_entries')
+              .update({
+                ai_explanation: slideAnalysis.ai_explanation,
+                ai_generated_at: new Date().toISOString(),
+                ai_model: "gemini-2.5-pro"
+              })
+              .eq('id', entry.id)
+          )
+        }
       }
+
+      // 모든 업데이트 실행
+      const updateResults = await Promise.all(updatePromises)
+      
+      // 업데이트 에러 체크
+      for (const result of updateResults) {
+        if (result.error) {
+          console.error('Update error:', result.error)
+          throw new Error('Failed to save AI analysis results')
+        }
+      }
+
+      // 업데이트된 데이터 다시 가져오기
+      const { data: entriesData } = await supabase
+        .from('record_entries')
+        .select('*')
+        .eq('recording_id', recordingId)
+        .order('created_at', { ascending: true })
+
+      const { data: recordingData } = await supabase
+        .from('recordings')
+        .select('*')
+        .eq('id', recordingId)
+        .single()
+
+      updatedEntries = entriesData
+      updatedRecording = recordingData
     }
-
-    // 업데이트된 데이터 다시 가져오기
-    const { data: updatedEntries } = await supabase
-      .from('record_entries')
-      .select('*')
-      .eq('recording_id', recordingId)
-      .order('created_at', { ascending: true })
-
-    const { data: updatedRecording } = await supabase
-      .from('recordings')
-      .select('*')
-      .eq('id', recordingId)
-      .single()
 
     return NextResponse.json({
       success: true,

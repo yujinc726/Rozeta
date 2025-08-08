@@ -24,6 +24,7 @@ interface WhisperContextType {
       removeRepeated: boolean
       merge: boolean
       prompt: string
+      regenerate?: boolean
     }
   ) => Promise<void>
   getTaskStatus: (recordingId: string) => WhisperTask | undefined
@@ -53,6 +54,7 @@ export const WhisperProvider: React.FC<{ children: React.ReactNode }> = ({ child
       removeRepeated: boolean
       merge: boolean
       prompt: string
+      regenerate?: boolean
     }
   ) => {
     // 이미 진행 중인 작업이 있는지 확인
@@ -61,6 +63,13 @@ export const WhisperProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toast.error('이미 변환 작업이 진행 중입니다.')
       return
     }
+    
+    console.log('🎤 Whisper 변환 시작:', {
+      recordingId,
+      regenerate: options.regenerate || false,
+      prompt: options.prompt || '(없음)',
+      timestamp: new Date().toISOString()
+    })
 
     // 작업 초기화
     updateTask(recordingId, {
@@ -167,7 +176,8 @@ export const WhisperProvider: React.FC<{ children: React.ReactNode }> = ({ child
             stable_ts: options.stableTs,
             remove_repeated: options.removeRepeated,
             merge: options.merge,
-            prompt: options.prompt || ''
+            prompt: options.prompt || '',
+            regenerate: options.regenerate || false
           }),
           signal: controller.signal
         })

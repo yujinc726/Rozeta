@@ -19,10 +19,11 @@ import { useWhisper } from "@/app/contexts/whisper-context"
 interface WhisperProcessorProps {
   recordingId?: string
   audioUrl?: string
+  isRegenerate?: boolean
   onBack?: () => void
 }
 
-export default function WhisperProcessor({ recordingId, audioUrl, onBack }: WhisperProcessorProps) {
+export default function WhisperProcessor({ recordingId, audioUrl, isRegenerate = false, onBack }: WhisperProcessorProps) {
   const router = useRouter()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [stableTs, setStableTs] = useState(true)
@@ -164,7 +165,7 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
       {/* Header */}
       <div className="border-b px-6 py-4">
         <div>
-                      <h2 className="text-xl font-bold">AI 자막 · 텍스트 생성</h2>
+                      <h2 className="text-xl font-bold">{isRegenerate ? 'AI 자막 · 텍스트 재생성' : 'AI 자막 · 텍스트 생성'}</h2>
           <p className="text-sm text-gray-600 mt-1">녹음된 강의 음성을 텍스트로 생성합니다</p>
         </div>
       </div>
@@ -226,7 +227,8 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
                     stableTs,
                     removeRepeated,
                     merge,
-                    prompt
+                    prompt,
+                    regenerate: isRegenerate
                   }).catch(error => {
                     console.error('Failed to start transcription:', error)
                     toast.error('텍스트 변환 시작에 실패했습니다.')
@@ -249,8 +251,8 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
                   </>
                 ) : (
                   <>
-                    <Wand2 className="w-5 h-5 mr-2" />
-                    텍스트 변환 시작
+                                      <Wand2 className="w-5 h-5 mr-2" />
+                  {isRegenerate ? '텍스트 다시 변환 시작' : '텍스트 변환 시작'}
                   </>
                 )}
               </Button>

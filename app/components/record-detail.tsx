@@ -22,7 +22,9 @@ import { SlideAIExplanation } from "./ai-explanation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useSubtitleSettings } from "@/app/contexts/subtitle-settings-context"
 import { useWhisper } from "@/app/contexts/whisper-context"
+import { useAIAnalysis } from "@/app/contexts/ai-analysis-context"
 import WhisperProcessor from "./whisper-processor"
+import AIAnalysisModal from "./ai-analysis-modal"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 
@@ -36,6 +38,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const { isSidebarCollapsed } = useSidebarContext()
   const { settings: subtitleSettings } = useSubtitleSettings()
   const { getTaskStatus, startTranscription } = useWhisper()
+  const { getTaskStatus: getAITaskStatus, startAnalysis } = useAIAnalysis()
   const router = useRouter()
   const [recordEntriesList, setRecordEntriesList] = useState<RecordEntry[]>([])
   const [editingEntry, setEditingEntry] = useState<RecordEntry | null>(null)
@@ -48,6 +51,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [currentSlideImage, setCurrentSlideImage] = useState<string | null>(null)
   const [slideLoading, setSlideLoading] = useState(false)
   const [showWhisperDialog, setShowWhisperDialog] = useState(false)
+  const [showAIAnalysisDialog, setShowAIAnalysisDialog] = useState(false)
+  const [isAIRegenerate, setIsAIRegenerate] = useState(false)
+  const [isWhisperRegenerate, setIsWhisperRegenerate] = useState(false)
   const [whisperOptions, setWhisperOptions] = useState({
     stableTs: true,
     removeRepeated: true,
@@ -343,7 +349,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
         
         // currentEntry도 업데이트 (현재 보고 있는 슬라이드의 AI 설명이 보이도록)
         if (currentEntry && data.entries) {
-          const updatedCurrentEntry = data.entries.find(e => e.id === currentEntry.id)
+          const updatedCurrentEntry = data.entries.find((e: RecordEntry) => e.id === currentEntry.id)
           if (updatedCurrentEntry) {
             setCurrentEntry(updatedCurrentEntry)
           }
@@ -579,6 +585,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
   const hasTranscript = recording.transcript !== null && recording.transcript !== undefined
   const whisperTask = getTaskStatus(recording.id)
+  
+  // AI 분석 작업 상태 가져오기
+  const aiTask = getAITaskStatus(recording.id)
   const hasAIAnalysis = recordEntriesList.some(entry => 
     entry.ai_explanation && Object.keys(entry.ai_explanation).length > 0
   )
@@ -697,7 +706,10 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   </div>
                 ) : (
                   <Button 
-                    onClick={() => setShowWhisperDialog(true)}
+                    onClick={() => {
+                      setIsWhisperRegenerate(hasTranscript)
+                      setShowWhisperDialog(true)
+                    }}
                     className={`w-full bg-gradient-to-r ${
                       hasTranscript
                         ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
@@ -738,22 +750,32 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               </div>
             </CardHeader>
             <CardContent>
-              {hasAIAnalysis ? (
+              {aiTask && ['preparing', 'analyzing', 'saving'].includes(aiTask.status) ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{aiTask.statusMessage}</p>
+                    <span className="text-sm text-gray-500">{aiTask.progress}%</span>
+                  </div>
+                  <Progress value={aiTask.progress} className="h-2" />
+                  <p className="text-xs text-gray-500 text-center">
+                    페이지를 벗어나도 작업은 계속됩니다
+                  </p>
+                </div>
+              ) : hasAIAnalysis ? (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
                     AI가 강의 내용을 분석했습니다. 슬라이드별 설명을 확인하세요.
                   </p>
                   <Button 
-                    onClick={() => generateAIExplanations(false)}
+                    onClick={() => {
+                      setIsAIRegenerate(true)
+                      setShowAIAnalysisDialog(true)
+                    }}
                     className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                    disabled={isGeneratingAI}
+                    disabled={aiTask?.status === 'analyzing'}
                   >
-                    {isGeneratingAI ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Brain className="w-4 h-4 mr-2" />
-                    )}
-                    {isGeneratingAI ? 'AI 분석 중...' : 'AI 설명 보기'}
+                    <Brain className="w-4 h-4 mr-2" />
+                    AI 설명 다시 생성
                   </Button>
                 </div>
               ) : hasTranscript ? (
@@ -762,17 +784,16 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     텍스트 생성이 완료되어 AI 분석을 시작할 수 있습니다.
                   </p>
                   <Button 
-                    onClick={() => generateAIExplanations(false)}
+                    onClick={() => {
+                      setIsAIRegenerate(false)
+                      setShowAIAnalysisDialog(true)
+                    }}
                     variant="outline"
                     className="w-full"
-                    disabled={isGeneratingAI}
+                    disabled={aiTask?.status === 'analyzing'}
                   >
-                    {isGeneratingAI ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Brain className="w-4 h-4 mr-2" />
-                    )}
-                    {isGeneratingAI ? 'AI 분석 중...' : 'AI 분석 시작하기'}
+                    <Brain className="w-4 h-4 mr-2" />
+                    AI 분석 시작하기
                   </Button>
                 </div>
               ) : (
@@ -1454,11 +1475,33 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           <VisuallyHidden.Root>
             <DialogTitle>AI 자막 · 텍스트 생성</DialogTitle>
           </VisuallyHidden.Root>
-          <WhisperProcessor
+                      <WhisperProcessor
+              recordingId={recording.id}
+              audioUrl={recording.audio_url}
+              isRegenerate={isWhisperRegenerate}
+              onBack={() => {
+                setShowWhisperDialog(false)
+                setIsWhisperRegenerate(false)
+              }}
+            />
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Analysis Dialog */}
+      <Dialog open={showAIAnalysisDialog} onOpenChange={setShowAIAnalysisDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+          <VisuallyHidden.Root>
+            <DialogTitle>AI 강의 분석</DialogTitle>
+          </VisuallyHidden.Root>
+          <AIAnalysisModal
             recordingId={recording.id}
-            audioUrl={recording.audio_url}
+            recordingTitle={recording.title}
+            hasSlides={recordEntriesList.length > 0}
+            hasTranscript={hasTranscript}
+            isRegenerate={isAIRegenerate}
             onBack={() => {
-              setShowWhisperDialog(false)
+              setShowAIAnalysisDialog(false)
+              setIsAIRegenerate(false)
             }}
           />
         </DialogContent>

@@ -138,6 +138,23 @@ export const recordings = {
     return data || []
   },
 
+  // ID로 특정 녹음 조회
+  async getById(id: string): Promise<Recording | null> {
+    const { data, error } = await supabase
+      .from('recordings')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null
+      }
+      throw error
+    }
+    return data
+  },
+
   // 특정 과목의 모든 녹음 조회 (subject_id를 매개변수로 받는 버전)
   async list(subjectId: string): Promise<Recording[]> {
     const { data, error } = await supabase

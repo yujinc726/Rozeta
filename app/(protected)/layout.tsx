@@ -13,6 +13,7 @@ import { SubtitleSettingsProvider } from "@/app/contexts/subtitle-settings-conte
 import { ThemeProvider } from "@/app/contexts/theme-context"
 import { RecordingProvider } from "@/app/contexts/recording-context"
 import { WhisperProvider } from "@/app/contexts/whisper-context"
+import { AIAnalysisProvider } from "@/app/contexts/ai-analysis-context"
 import FloatingRecorder from "@/app/components/floating-recorder"
 
 function ProtectedLayoutContent({
@@ -214,11 +215,13 @@ export default function ProtectedLayout({
       <SidebarProvider>
         <SubtitleSettingsProvider>
           <RecordingProvider>
-            <WhisperProvider>
-              <ProtectedLayoutContent>
-                {children}
-              </ProtectedLayoutContent>
-            </WhisperProvider>
+                    <WhisperProvider>
+          <AIAnalysisProvider>
+            <ProtectedLayoutContent>
+              {children}
+            </ProtectedLayoutContent>
+          </AIAnalysisProvider>
+        </WhisperProvider>
           </RecordingProvider>
         </SubtitleSettingsProvider>
       </SidebarProvider>

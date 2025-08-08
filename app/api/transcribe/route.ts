@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     let stable_ts: boolean = true;
     let remove_repeated: boolean = true;
     let merge: boolean = true;
+    let regenerate: boolean = false;
 
     // Content-Type 확인하여 처리 방식 결정
     const contentType = request.headers.get('content-type') || '';
@@ -32,7 +33,13 @@ export async function POST(request: NextRequest) {
     if (contentType.includes('application/json')) {
       // JSON 방식 (URL 전달)
       const json = await request.json();
-      const { audio_url, stable_ts: st, remove_repeated: rr, merge: m, prompt: p } = json;
+      const { audio_url, stable_ts: st, remove_repeated: rr, merge: m, prompt: p, regenerate: regen } = json;
+      
+      console.log('🎤 Whisper API 요청:', {
+        regenerate: regen || false,
+        prompt: p || '(없음)',
+        timestamp: new Date().toISOString()
+      });
       
       if (!audio_url) {
         return NextResponse.json({ error: '오디오 URL이 없습니다.' }, { status: 400 });
@@ -53,6 +60,7 @@ export async function POST(request: NextRequest) {
       if (rr !== undefined) remove_repeated = rr;
       if (m !== undefined) merge = m;
       if (p) prompt = p;
+      if (regen !== undefined) regenerate = regen;
       
     } else {
       // FormData 방식 (파일 직접 업로드)
@@ -72,6 +80,11 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`Submitting job to RunPod endpoint: ${RUNPOD_ENDPOINT_ID}`);
+    console.log(`📌 Whisper 프롬프트: "${prompt || '(기본값)'}"`);
+    
+    if (regenerate) {
+      console.log('🔄 재생성 요청입니다. 새로운 변환을 시작합니다.');
+    }
 
     // Step 1: Submit the job
     const runResponse = await fetch(`https://api.runpod.ai/v2/${RUNPOD_ENDPOINT_ID}/run`, {
