@@ -784,7 +784,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               </CardTitle>
               <CardDescription>
                 {currentEntry.material_name === '미선택' ? 
-                  '미선택 (강의안 없음)' : 
+                  '미선택' : 
                   currentEntry.material_name
                 }
               </CardDescription>
