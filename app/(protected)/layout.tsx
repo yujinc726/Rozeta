@@ -11,6 +11,9 @@ import { toast } from "sonner"
 import { SidebarProvider, useSidebarContext } from "@/app/contexts/sidebar-context"
 import { SubtitleSettingsProvider } from "@/app/contexts/subtitle-settings-context"
 import { ThemeProvider } from "@/app/contexts/theme-context"
+import { RecordingProvider } from "@/app/contexts/recording-context"
+import { WhisperProvider } from "@/app/contexts/whisper-context"
+import FloatingRecorder from "@/app/components/floating-recorder"
 
 function ProtectedLayoutContent({
   children,
@@ -196,6 +199,7 @@ function ProtectedLayoutContent({
       )}>
         {children}
       </div>
+      <FloatingRecorder />
     </div>
   )
 }
@@ -209,9 +213,13 @@ export default function ProtectedLayout({
     <ThemeProvider>
       <SidebarProvider>
         <SubtitleSettingsProvider>
-          <ProtectedLayoutContent>
-            {children}
-          </ProtectedLayoutContent>
+          <RecordingProvider>
+            <WhisperProvider>
+              <ProtectedLayoutContent>
+                {children}
+              </ProtectedLayoutContent>
+            </WhisperProvider>
+          </RecordingProvider>
         </SubtitleSettingsProvider>
       </SidebarProvider>
     </ThemeProvider>

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
 import { Play, Pause, RotateCcw, Upload, FileText, Mic, CheckCircle2, ChevronLeft, ChevronRight, Clock, Edit, X, Square, ArrowLeft, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -17,6 +18,7 @@ import { toast } from 'sonner'
 import { getPdfPageCount, getPdfPageThumbnail } from '@/lib/pdf-utils'
 import { processRecordingWithProgress } from '@/lib/ai-processor'
 import { useSidebarContext } from '@/app/contexts/sidebar-context'
+import { useRecording } from '@/app/contexts/recording-context'
 
 interface SlideSync {
   id: string
@@ -35,90 +37,55 @@ interface RecordPageProps {
 
 export default function RecordPage({ subjectName, subjectId }: RecordPageProps) {
   const { isSidebarCollapsed } = useSidebarContext()
+  const recording = useRecording()
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   
   useEffect(() => {
     auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
-  const [recordingTitle, setRecordingTitle] = useState(`${subjectName} ${new Date().toLocaleDateString('ko-KR')}`)
+  
+  // Initialize recording context values if not already recording
+  useEffect(() => {
+    if (!recording.isRecording) {
+      recording.updateRecordingTitle(`${subjectName} ${new Date().toLocaleDateString('ko-KR')}`)
+    }
+  }, [subjectName])
+  
   const [isEditingTitle, setIsEditingTitle] = useState(false)
-  const [pdfFiles, setPdfFiles] = useState<File[]>([])
-  const [selectedPdfIndex, setSelectedPdfIndex] = useState<number>(-1)
-  const [isRecording, setIsRecording] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0) // milliseconds
-  const [slideSyncs, setSlideSyncs] = useState<SlideSync[]>([])
-  const [currentSlideNumber, setCurrentSlideNumber] = useState(1)
-  const [totalSlides, setTotalSlides] = useState(0)
-  const [recordingId, setRecordingId] = useState<string | null>(null)
+  const [uploadingPdfIndex, setUploadingPdfIndex] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [currentSlideThumbnail, setCurrentSlideThumbnail] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [processingStep, setProcessingStep] = useState('')
-  const [processingProgress, setProcessingProgress] = useState(0)
-  const [allSlideThumbnails, setAllSlideThumbnails] = useState<string[][]>([])
-  const [slideMemo, setSlideMemo] = useState('')
-  const [uploadingPdfIndex, setUploadingPdfIndex] = useState<number | null>(null)
-  const [pdfLastPages, setPdfLastPages] = useState<number[]>([]) // 각 PDF별 마지막 페이지 번호
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-  const startTimeRef = useRef<number>(0)
-  const pausedTimeRef = useRef<number>(0)
-  const pausedAtRef = useRef<number>(0)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Timer logic
-  useEffect(() => {
-    if (isRecording && !isPaused) {
-      intervalRef.current = setInterval(() => {
-        const now = Date.now()
-        const elapsed = now - startTimeRef.current + pausedTimeRef.current
-        setRecordingTime(elapsed)
-      }, 10) // Update every 10ms for smooth millisecond display
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [isRecording, isPaused])
 
   // Update current slide thumbnail when PDF or slide changes
   useEffect(() => {
     // 썸네일 업데이트를 지연시켜 모든 상태 변경이 완료된 후 실행
     const timeoutId = setTimeout(() => {
-      if (selectedPdfIndex >= 0 && allSlideThumbnails[selectedPdfIndex] && currentSlideNumber > 0) {
-        setCurrentSlideThumbnail(allSlideThumbnails[selectedPdfIndex][currentSlideNumber - 1])
+      if (recording.selectedPdfIndex >= 0 && recording.allSlideThumbnails[recording.selectedPdfIndex] && recording.currentSlideNumber > 0) {
+        setCurrentSlideThumbnail(recording.allSlideThumbnails[recording.selectedPdfIndex][recording.currentSlideNumber - 1])
       } else {
         setCurrentSlideThumbnail(null)
       }
     }, 0)
     
     return () => clearTimeout(timeoutId)
-  }, [selectedPdfIndex, currentSlideNumber, allSlideThumbnails])
+  }, [recording.selectedPdfIndex, recording.currentSlideNumber, recording.allSlideThumbnails])
 
   // 현재 슬라이드 번호가 변경될 때마다 해당 PDF의 마지막 페이지 업데이트
   useEffect(() => {
-    if (selectedPdfIndex >= 0 && currentSlideNumber > 0) {
-      setPdfLastPages(prev => {
-        const newPages = [...prev]
+    if (recording.selectedPdfIndex >= 0 && recording.currentSlideNumber > 0) {
+      const newPages = [...recording.pdfLastPages]
         // 배열 크기를 현재 PDF 인덱스까지 확장
-        while (newPages.length <= selectedPdfIndex) {
+      while (newPages.length <= recording.selectedPdfIndex) {
           newPages.push(1)
         }
-        newPages[selectedPdfIndex] = currentSlideNumber
-        return newPages
-      })
+      newPages[recording.selectedPdfIndex] = recording.currentSlideNumber
+      recording.setPdfLastPages(newPages)
     }
-  }, [selectedPdfIndex, currentSlideNumber])
+  }, [recording.selectedPdfIndex, recording.currentSlideNumber])
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000)
@@ -136,17 +103,17 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file && file.type === 'application/pdf') {
-      const newIndex = pdfFiles.length
-      setPdfFiles(prev => [...prev, file])
-      setSelectedPdfIndex(newIndex)
+      const newIndex = recording.pdfFiles.length
+      recording.setPdfFiles([...recording.pdfFiles, file])
+      recording.setSelectedPdfIndex(newIndex)
       setUploadingPdfIndex(newIndex) // 업로드 시작
       
       try {
         toast.info('PDF 파일을 분석하는 중...')
         const pageCount = await getPdfPageCount(file)
-        setTotalSlides(pageCount)
+        recording.setTotalSlides(pageCount)
         // 새로 업로드된 PDF는 1페이지로 시작
-        setCurrentSlideNumber(1)
+        recording.setCurrentSlideNumber(1)
 
         const thumbnails: string[] = []
         for (let i = 1; i <= pageCount; i++) {
@@ -158,16 +125,16 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
             thumbnails.push('')
           }
         }
-        setAllSlideThumbnails(prev => [...prev, thumbnails])
+        recording.setAllSlideThumbnails([...recording.allSlideThumbnails, thumbnails])
         // 새 PDF의 초기 페이지를 1로 설정
-        setPdfLastPages(prev => [...prev, 1])
+        recording.setPdfLastPages([...recording.pdfLastPages, 1])
         toast.success(`${pageCount}개의 슬라이드를 감지했습니다.`)
         setUploadingPdfIndex(null) // 업로드 완료
       } catch (error) {
         console.error('PDF 페이지 수 계산 실패:', error)
         toast.error('PDF 파일을 읽을 수 없습니다.')
-        setPdfFiles(prev => prev.slice(0, -1))
-        setTotalSlides(0)
+        recording.setPdfFiles(recording.pdfFiles.slice(0, -1))
+        recording.setTotalSlides(0)
         setUploadingPdfIndex(null) // 업로드 실패
       }
     } else if (file) {
@@ -176,356 +143,33 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
   }
 
   const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        }
-      })
-      
-      audioChunksRef.current = []
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      })
-      
-      mediaRecorderRef.current = mediaRecorder
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data)
-        }
-      }
-      
-      mediaRecorder.start(1000)
-      setIsRecording(true)
-      setIsPaused(false)
-      setRecordingTime(0)
-      startTimeRef.current = Date.now()
-      pausedTimeRef.current = 0
-      pausedAtRef.current = 0
-      
-      // 기존 기록 초기화
-      setSlideSyncs([])
-      
-      // 항상 첫 번째 구간 자동 추가 (PDF 선택 여부와 관계없이)
-      const firstSlide: SlideSync = {
-        id: Date.now().toString(),
-        pdfFileName: selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex] ? pdfFiles[selectedPdfIndex].name : '',
-        slideNumber: selectedPdfIndex >= 0 ? currentSlideNumber : 0, // 미선택인 경우 0으로 설정
-        startTime: '00:00:00.000',
-        recordingTime: 0,
-        memo: ''
-      }
-      setSlideSyncs([firstSlide])
-      
-      // toast.success('녹음이 시작되었습니다!')
-    } catch (error: any) {
-      console.error('녹음 시작 실패:', error)
-      if (error.name === 'NotAllowedError') {
-        toast.error('마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.')
-      } else if (error.name === 'NotFoundError') {
-        toast.error('마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.')
-      } else {
-        toast.error(`마이크 접근 오류: ${error.message}`)
-      }
-    }
+    await recording.startRecording(subjectId, subjectName, recording.recordingTitle)
   }
 
-  const pauseRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.pause()
-      setIsPaused(true)
-      pausedAtRef.current = Date.now()
-    }
-  }
 
-  const resumeRecording = () => {
-    if (mediaRecorderRef.current && isPaused && mediaRecorderRef.current.state === 'paused') {
-      mediaRecorderRef.current.resume()
-      setIsPaused(false)
-      const pauseDuration = Date.now() - pausedAtRef.current
-      pausedTimeRef.current += pauseDuration
-      startTimeRef.current = Date.now() - recordingTime + pausedTimeRef.current
-    }
-  }
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      const currentTime = formatTime(recordingTime).display
-      const updatedSlideSyncs = slideSyncs.map((sync, index) => {
-        if (index === slideSyncs.length - 1 && !sync.endTime) {
-          return { ...sync, endTime: currentTime }
-        }
-        return sync
-      })
-      setSlideSyncs(updatedSlideSyncs)
-      
-      // 일시정지 상태인 경우 먼저 재개한 후 정지
-      if (mediaRecorderRef.current.state === 'paused') {
-        mediaRecorderRef.current.resume()
-        // 재개 후 잠시 대기하여 상태 변경 완료 보장
-        setTimeout(() => {
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop()
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
-          }
-        }, 10)
-      } else {
-        mediaRecorderRef.current.stop()
-        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
-      }
-      
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        
-        setIsRecording(false)
-        setIsPaused(false)
-        startTimeRef.current = 0
-        pausedTimeRef.current = 0
-        pausedAtRef.current = 0
-        
+
+
+  const stopRecording = async () => {
         setIsSaving(true)
-        
-        try {
-          // 사전 검증
-          if (!user?.id) {
-            throw new Error('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.')
-          }
-          
-          if (!subjectId) {
-            throw new Error('과목 정보가 없습니다.')
-          }
-          
-          if (!recordingTitle.trim()) {
-            throw new Error('녹음 제목이 없습니다.')
-          }
-          
-          if (recordingTime <= 0) {
-            throw new Error('녹음 시간이 유효하지 않습니다.')
-          }
-          
-          if (!audioBlob || audioBlob.size === 0) {
-            throw new Error('녹음된 오디오 데이터가 없습니다.')
-          }
-          
-          console.log('저장 시작', {
-            subjectId,
-            recordingTitle,
-            userId: user.id,
-            duration: Math.floor(recordingTime / 1000),
-            slideSyncsCount: updatedSlideSyncs.length,
-            pdfFilesCount: pdfFiles.length,
-            audioBlobSize: audioBlob.size
-          })
-          
-          // 1. 녹음 정보를 데이터베이스에 저장
-          console.log('1단계: 녹음 정보 저장 시작')
-          const recording = await recordingsDb.create(
-            subjectId,
-            recordingTitle,
-            Math.floor(recordingTime / 1000) // seconds
-          )
-          console.log('1단계 완료: 녹음 정보 저장됨, ID:', recording.id)
-          
-          // 2. 오디오 파일 업로드
-          console.log('2단계: 오디오 파일 업로드 시작...')
-          const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' })
-          let audioUrl = ''
-          
-          try {
-            audioUrl = await storage.uploadAudio(audioFile, recording.id)
-            console.log('2단계 완료: 오디오 업로드 성공')
-          } catch (uploadError) {
-            console.error('2단계 실패: 오디오 업로드 실패, 녹음 데이터는 저장됨:', uploadError)
-            toast.warning('녹음은 저장되었지만 오디오 파일 업로드에 실패했습니다. 나중에 다시 시도해주세요.')
-            // 오디오 없이 계속 진행
-          }
-          
-          // 3. PDF 파일들 업로드 및 크기 계산
-          console.log('3단계: PDF 파일 업로드 시작, 파일 수:', pdfFiles.length)
-          const pdfUrls: string[] = []
-          let totalPdfSize = 0
-          for (const [index, pdf] of pdfFiles.entries()) {
-            try {
-              console.log(`PDF ${index + 1}/${pdfFiles.length} 업로드 중:`, pdf.name)
-              const pdfUrl = await storage.uploadPDF(pdf, recording.id)
-              pdfUrls.push(pdfUrl)
-              totalPdfSize += pdf.size
-              console.log(`PDF ${index + 1} 업로드 완료`)
-            } catch (uploadError) {
-              console.error(`PDF ${pdf.name} 업로드 실패:`, uploadError)
-              toast.warning(`PDF 파일 "${pdf.name}" 업로드에 실패했습니다.`)
-              // PDF 없이 계속 진행
-            }
-          }
-          console.log('3단계 완료: 모든 PDF 업로드 완료')
-          
-          // 4. 녹음 정보 업데이트 (파일 크기 포함)
-          console.log('4단계: 녹음 정보 업데이트 시작')
-          await recordingsDb.update(recording.id, {
-            audio_url: audioUrl,
-            pdf_url: pdfUrls.join(','), // 여러 PDF URL을 콤마로 구분하여 저장
-            file_size_bytes: audioBlob.size,
-            pdf_size_bytes: totalPdfSize
-          })
-          console.log('4단계 완료: 녹음 정보 업데이트됨')
-          
-          // 5. 슬라이드 기록 저장
-          console.log('슬라이드 기록 저장 시작:', updatedSlideSyncs.length, '개 항목')
-          for (const [index, sync] of updatedSlideSyncs.entries()) {
-            try {
-              console.log(`슬라이드 기록 ${index + 1}/${updatedSlideSyncs.length} 저장:`, {
-                recordingId: recording.id,
-                pdfFileName: sync.pdfFileName,
-                slideNumber: sync.slideNumber,
-                startTime: sync.startTime,
-                endTime: sync.endTime || '',
-                memo: sync.memo || ''
-              })
-              
-              await recordEntries.create(
-                recording.id,
-                sync.pdfFileName || '미선택', // 빈 문자열 대신 '미선택' 사용
-                sync.slideNumber === 0 ? 1 : sync.slideNumber, // 0일 때 1로 변경
-                sync.startTime,
-                sync.endTime || '',
-                sync.memo || ''
-              )
-              
-              console.log(`슬라이드 기록 ${index + 1} 저장 완료`)
-            } catch (entryError) {
-              console.error(`슬라이드 기록 ${index + 1} 저장 실패:`, entryError)
-              throw new Error(`슬라이드 기록 ${index + 1} 저장 중 오류가 발생했습니다: ${entryError}`)
-            }
-          }
-          console.log('모든 슬라이드 기록 저장 완료')
-          
-          // toast.success('녹음이 성공적으로 저장되었습니다!')
-          
-          // 6. 메인 화면으로 돌아가기
-          setTimeout(() => {
-            router.push(`/subjects/${subjectId}`)
-          }, 1500)
-          
-        } catch (error) {
-          console.error('저장 실패 상세:', {
-            error,
-            errorType: typeof error,
-            errorConstructor: error?.constructor?.name,
-            errorMessage: error?.message,
-            errorStack: error?.stack,
-            errorString: String(error),
-            errorJSON: JSON.stringify(error),
-            recordingData: {
-              subjectId,
-              recordingTitle,
-              userId: user?.id,
-              duration: Math.floor(recordingTime / 1000),
-              slideSyncsCount: updatedSlideSyncs.length,
-              pdfFilesCount: pdfFiles.length
-            }
-          })
-          
-          let errorMessage = '저장 중 알 수 없는 오류가 발생했습니다.'
-          
-          if (error instanceof Error) {
-            if (error.message.includes('Invalid URL')) {
-              errorMessage = 'Supabase 설정이 필요합니다. .env.local 파일을 확인해주세요.'
-            } else if (error.message.includes('auth')) {
-              errorMessage = '인증 오류가 발생했습니다. 다시 로그인해주세요.'
-            } else if (error.message.includes('network') || error.message.includes('fetch')) {
-              errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.'
-            } else if (error.message) {
-              errorMessage = `저장 중 오류가 발생했습니다: ${error.message}`
-            }
-          } else if (typeof error === 'object' && error !== null) {
-            // Supabase 에러 등의 경우
-            const errorObj = error as any
-            if (errorObj.message) {
-              errorMessage = `저장 중 오류가 발생했습니다: ${errorObj.message}`
-            } else if (errorObj.error) {
-              errorMessage = `저장 중 오류가 발생했습니다: ${errorObj.error}`
-            } else if (errorObj.details) {
-              errorMessage = `저장 중 오류가 발생했습니다: ${errorObj.details}`
-            }
-          } else if (typeof error === 'string') {
-            errorMessage = `저장 중 오류가 발생했습니다: ${error}`
-          }
-          
-          toast.error(errorMessage)
+    try {
+      await recording.stopRecording()
         } finally {
           setIsSaving(false)
-          setProcessingStep('')
-          setProcessingProgress(0)
-        }
-      }
     }
   }
 
-  const markCurrentSlide = () => {
-    if (!isRecording) {
-      // toast.warning('먼저 녹음을 시작해주세요.')
-      return
-    }
-    
-    const currentTime = formatTime(recordingTime).display
-    const lastSync = slideSyncs[slideSyncs.length - 1]
-    
-    if (lastSync && !lastSync.endTime) {
-      // 현재 슬라이드의 종료 시간 기록
-      const updatedSyncs = [...slideSyncs]
-      updatedSyncs[updatedSyncs.length - 1] = {
-        ...lastSync,
-        endTime: currentTime,
-        memo: slideMemo || lastSync.memo
-      }
-      setSlideSyncs(updatedSyncs)
-      
-      // 다음 구간 자동 시작 (PDF 선택/미선택 모두)
-      if (selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex] && currentSlideNumber < totalSlides) {
-        // PDF 선택된 경우: 다음 슬라이드로 이동
-        setCurrentSlideNumber(prev => prev + 1)
-        const newSync: SlideSync = {
-          id: Date.now().toString(),
-          pdfFileName: pdfFiles[selectedPdfIndex].name,
-          slideNumber: currentSlideNumber + 1,
-          startTime: currentTime,
-          recordingTime: recordingTime,
-          memo: ''
-        }
-        setSlideSyncs([...updatedSyncs, newSync])
-      } else {
-        // 미선택 상태 또는 마지막 슬라이드인 경우: 동일한 설정으로 다음 구간 시작
-        const newSync: SlideSync = {
-          id: Date.now().toString(),
-          pdfFileName: selectedPdfIndex >= 0 && pdfFiles[selectedPdfIndex] ? pdfFiles[selectedPdfIndex].name : '',
-          slideNumber: selectedPdfIndex >= 0 ? currentSlideNumber : 0, // 미선택인 경우 0으로 설정
-          startTime: currentTime,
-          recordingTime: recordingTime,
-          memo: ''
-        }
-        setSlideSyncs([...updatedSyncs, newSync])
-      }
-      
-      setSlideMemo('')
-    } else {
-      // 이 블록은 첫 번째 구간에서만 실행되어야 하는데, startRecording에서 이미 첫 번째 구간을 생성하므로
-      // 이 블록이 실행되는 경우는 없어야 함. 하지만 안전을 위해 로그 출력
-      console.warn('markCurrentSlide: 예상하지 못한 상황 - slideSyncs가 비어있거나 모든 구간이 완료됨')
-    }
-  }
+
 
   const goToPrevSlide = () => {
-    if (currentSlideNumber > 1) {
-      setCurrentSlideNumber(prev => prev - 1)
+    if (recording.currentSlideNumber > 1) {
+      recording.setCurrentSlideNumber(recording.currentSlideNumber - 1)
     }
   }
 
   const goToNextSlide = () => {
-    if (currentSlideNumber < totalSlides) {
-      setCurrentSlideNumber(prev => prev + 1)
+    if (recording.currentSlideNumber < recording.totalSlides) {
+      recording.setCurrentSlideNumber(recording.currentSlideNumber + 1)
     }
   }
 
@@ -539,8 +183,8 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
               <div>
                 {isEditingTitle ? (
                   <Input
-                    value={recordingTitle}
-                    onChange={(e) => setRecordingTitle(e.target.value)}
+                    value={recording.recordingTitle}
+                    onChange={(e) => recording.updateRecordingTitle(e.target.value)}
                     onBlur={() => setIsEditingTitle(false)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -563,20 +207,25 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                     onClick={() => setIsEditingTitle(true)}
                     title="클릭하여 수정"
                   >
-                    {recordingTitle}
+                    {recording.recordingTitle}
                   </h1>
                 )}
               </div>
-              {isRecording && (
+              {recording.isRecording && (
                 <div className="flex items-center gap-2">
-                  {isPaused ? (
+                  {recording.isPaused ? (
                     <>
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <div className="relative">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                      </div>
                       <span className="text-sm font-medium text-yellow-600">일시정지</span>
                     </>
                   ) : (
                     <>
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <div className="relative">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <div className="absolute inset-0 w-3 h-3 bg-red-500 rounded-full animate-ping"></div>
+                      </div>
                       <span className="text-sm font-medium text-red-600">녹음 중</span>
                     </>
                   )}
@@ -616,26 +265,26 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                   <button
                         onClick={() => {
                           startTransition(() => {
-                            setSelectedPdfIndex(-1)
-                            setTotalSlides(0)
+                            recording.setSelectedPdfIndex(-1)
+                            recording.setTotalSlides(0)
                             // 슬라이드 번호는 유지
                           })
                         }}
                         className={cn(
                           "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all",
-                          selectedPdfIndex === -1 
+                          recording.selectedPdfIndex === -1 
                             ? "bg-purple-100 text-purple-700 border border-purple-300" 
                             : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
                         )}
                       >
                         <X className="w-3 h-3" />
                         <span>미선택</span>
-                        {selectedPdfIndex === -1 && (
+                        {recording.selectedPdfIndex === -1 && (
                           <CheckCircle2 className="w-3 h-3" />
                         )}
                       </button>
                       
-                      {pdfFiles.map((file, index) => (
+                      {recording.pdfFiles.map((file, index) => (
                         <button
                           key={index}
                           onClick={async () => {
@@ -644,20 +293,20 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                             try {
                               const pageCount = await getPdfPageCount(file)
                               // 해당 PDF의 마지막 페이지 계산 (없으면 1페이지)
-                              const lastPage = pdfLastPages[index] || 1
+                              const lastPage = recording.pdfLastPages[index] || 1
                               const targetSlideNumber = Math.min(lastPage, pageCount)
                               
                               // 모든 상태를 한번에 업데이트하여 중간 상태 방지
                               startTransition(() => {
-                                setSelectedPdfIndex(index)
-                                setTotalSlides(pageCount)
-                                setCurrentSlideNumber(targetSlideNumber)
+                                recording.setSelectedPdfIndex(index)
+                                recording.setTotalSlides(pageCount)
+                                recording.setCurrentSlideNumber(targetSlideNumber)
                               })
                             } catch (error) {
                               console.error('PDF 페이지 수 계산 실패:', error)
                               startTransition(() => {
-                                setSelectedPdfIndex(index)
-                                setTotalSlides(0)
+                                recording.setSelectedPdfIndex(index)
+                                recording.setTotalSlides(0)
                               })
                             }
                           }}
@@ -666,7 +315,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                             "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all",
                             uploadingPdfIndex === index
                               ? "bg-blue-100 text-blue-700 border border-blue-300 cursor-not-allowed"
-                              : selectedPdfIndex === index 
+                              : recording.selectedPdfIndex === index 
                               ? "bg-purple-100 text-purple-700 border border-purple-300" 
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
                           )}
@@ -677,7 +326,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                             <FileText className="w-3 h-3" />
                           )}
                           <span className="max-w-[120px] truncate">{file.name}</span>
-                          {selectedPdfIndex === index && uploadingPdfIndex !== index && (
+                          {recording.selectedPdfIndex === index && uploadingPdfIndex !== index && (
                             <CheckCircle2 className="w-3 h-3" />
                           )}
                         </button>
@@ -689,11 +338,11 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
             {/* Full Screen Slide Content */}
             <div className="flex-1 bg-white rounded-lg shadow-md relative overflow-hidden">
               {/* Slide Navigation */}
-              {selectedPdfIndex >= 0 && (
+              {recording.selectedPdfIndex >= 0 && (
                 <div className="absolute top-4 right-4 flex gap-2 z-10">
                   <Button
                     onClick={goToPrevSlide}
-                    disabled={currentSlideNumber <= 1}
+                    disabled={recording.currentSlideNumber <= 1}
                     variant="outline"
                     size="sm"
                     className="bg-white/90 hover:bg-white"
@@ -702,7 +351,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                   </Button>
                   <Button
                     onClick={goToNextSlide}
-                    disabled={currentSlideNumber >= totalSlides}
+                    disabled={recording.currentSlideNumber >= recording.totalSlides}
                     variant="outline"
                     size="sm"
                     className="bg-white/90 hover:bg-white"
@@ -715,15 +364,15 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                 <>
                   <img 
                     src={currentSlideThumbnail} 
-                    alt={`슬라이드 ${currentSlideNumber}`}
+                    alt={`슬라이드 ${recording.currentSlideNumber}`}
                     className="w-full h-full object-contain p-8"
                     style={{ maxHeight: 'calc(100vh - 250px)' }}
                   />
-                  {selectedPdfIndex >= 0 && (
+                  {recording.selectedPdfIndex >= 0 && (
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center">
                       <div className="bg-black/30 hover:bg-black/70 text-white/70 hover:text-white px-4 py-2 rounded-full backdrop-blur-sm transition-all duration-200 cursor-default">
                         <span className="text-sm font-medium">
-                          {currentSlideNumber} / {totalSlides}
+                          {recording.currentSlideNumber} / {recording.totalSlides}
                         </span>
                       </div>
                     </div>
@@ -742,7 +391,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
             </div>
 
             {/* Records Table */}
-            {slideSyncs.length > 0 && (
+            {recording.slideSyncs.length > 0 && (
               <div className="mt-4 bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="p-4 border-b">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -762,20 +411,20 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                       </tr>
                     </thead>
                     <tbody>
-                      {slideSyncs.map((sync, index) => (
+                      {recording.slideSyncs.map((sync, index) => (
                         <tr key={sync.id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-3">
                             <select
                               value={sync.pdfFileName}
                               onChange={(e) => {
-                                const updated = [...slideSyncs]
+                                const updated = [...recording.slideSyncs]
                                 updated[index] = { ...updated[index], pdfFileName: e.target.value }
-                                setSlideSyncs(updated)
+                                recording.updateSlideSyncs(updated)
                               }}
                               className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                             >
                               <option value="">미선택</option>
-                              {pdfFiles.map((file, fileIndex) => (
+                              {recording.pdfFiles.map((file, fileIndex) => (
                                 <option key={fileIndex} value={file.name}>
                                   {file.name}
                                 </option>
@@ -790,10 +439,10 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                                 type="number"
                                 value={sync.slideNumber || ''}
                                 onChange={(e) => {
-                                  const updated = [...slideSyncs]
-                                  const value = e.target.value === '' ? '' : parseInt(e.target.value)
+                                  const updated = [...recording.slideSyncs]
+                                  const value = e.target.value === '' ? 0 : parseInt(e.target.value)
                                   updated[index] = { ...updated[index], slideNumber: value }
-                                  setSlideSyncs(updated)
+                                  recording.updateSlideSyncs(updated)
                                 }}
                                 className="w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 min="1"
@@ -805,9 +454,9 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                               type="text"
                               value={sync.startTime}
                               onChange={(e) => {
-                                const updated = [...slideSyncs]
+                                const updated = [...recording.slideSyncs]
                                 updated[index] = { ...updated[index], startTime: e.target.value }
-                                setSlideSyncs(updated)
+                                recording.updateSlideSyncs(updated)
                               }}
                               className="w-32 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
@@ -817,9 +466,9 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                               type="text"
                               value={sync.endTime || ''}
                               onChange={(e) => {
-                                const updated = [...slideSyncs]
+                                const updated = [...recording.slideSyncs]
                                 updated[index] = { ...updated[index], endTime: e.target.value }
-                                setSlideSyncs(updated)
+                                recording.updateSlideSyncs(updated)
                               }}
                               className="w-32 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                               placeholder="진행 중"
@@ -830,9 +479,9 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                               type="text"
                               value={sync.memo || ''}
                               onChange={(e) => {
-                                const updated = [...slideSyncs]
+                                const updated = [...recording.slideSyncs]
                                 updated[index] = { ...updated[index], memo: e.target.value }
-                                setSlideSyncs(updated)
+                                recording.updateSlideSyncs(updated)
                               }}
                               className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                               placeholder="메모를 입력하세요"
@@ -860,13 +509,13 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                 <div className="flex items-center gap-2 mb-2">
                   <Edit className="w-4 h-4 text-purple-600" />
                   <Label htmlFor="slide-memo" className="text-sm font-semibold text-gray-700">
-                    슬라이드 {currentSlideNumber} 메모
+                    슬라이드 {recording.currentSlideNumber} 메모
                   </Label>
                 </div>
                 <Textarea
                   id="slide-memo"
-                  value={slideMemo}
-                  onChange={(e) => setSlideMemo(e.target.value)}
+                  value={recording.slideMemo}
+                  onChange={(e) => recording.updateSlideMemo(e.target.value)}
                   placeholder="현재 슬라이드에 대한 중요한 내용이나 메모를 입력하세요..."
                   className="w-full min-h-[100px] max-h-[200px] resize-y"
                 />
@@ -878,13 +527,13 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                   {/* Timer Display */}
                   <div className="text-center mb-2">
                     <div className="text-3xl font-mono font-bold text-gray-900">
-                      {formatTime(recordingTime).display}
+                      {formatTime(recording.recordingTime).display}
                     </div>
                   </div>
 
                   {/* Control Buttons */}
                   <div className="space-y-2">
-                    {!isRecording ? (
+                    {!recording.isRecording ? (
                       <>
                         <Button
                           onClick={startRecording}
@@ -899,15 +548,15 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                       <>
                         <div className="grid grid-cols-2 gap-2">
                           <Button
-                            onClick={isPaused ? resumeRecording : pauseRecording}
+                            onClick={() => recording.isPaused ? recording.resumeRecording() : recording.pauseRecording()}
                             variant="outline"
                             className="w-full"
                           >
-                            {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
-                            {isPaused ? '재개' : '일시정지'}
+                            {recording.isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
+                            {recording.isPaused ? '재개' : '일시정지'}
                           </Button>
                           <Button
-                            onClick={markCurrentSlide}
+                            onClick={() => recording.markCurrentSlide()}
                             className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
                           >
                             <Clock className="w-4 h-4 mr-2" />
@@ -934,35 +583,20 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
       </div>
 
       {/* Processing overlay */}
-      {(isSaving || isProcessing) && (
+      {isSaving && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-8 max-w-md mx-4">
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-6"></div>
               
-              {isProcessing ? (
-                <>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">AI가 강의를 분석하고 있습니다</h3>
-                  <p className="text-gray-600 text-center mb-4">{processingStep}</p>
-                  
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                    <div 
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 h-2.5 rounded-full transition-all duration-300"
-                      style={{ width: `${processingProgress}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-sm text-gray-500">{processingProgress}% 완료</p>
-                </>
-              ) : (
-                <>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">녹음을 저장하는 중...</h3>
                   <p className="text-gray-600 text-center">잠시만 기다려주세요</p>
-                </>
-              )}
             </div>
           </div>
         </div>
       )}
+
+
     </>
   )
 } 

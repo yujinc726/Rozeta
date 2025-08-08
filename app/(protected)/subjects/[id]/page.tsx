@@ -27,6 +27,7 @@ import { subjects as subjectsDb, recordings as recordingsDb } from "@/lib/databa
 import type { Subject as DbSubject, Recording as DbRecording } from "@/lib/supabase"
 import { auth } from "@/lib/supabase"
 import { toast } from "sonner"
+import { useRecording } from "@/app/contexts/recording-context"
 
 interface SubjectPageProps {
   params: Promise<{
@@ -36,6 +37,7 @@ interface SubjectPageProps {
 
 export default function SubjectPage({ params }: SubjectPageProps) {
   const router = useRouter()
+  const recording = useRecording()
   const [subject, setSubject] = useState<DbSubject | null>(null)
   const [recordings, setRecordings] = useState<DbRecording[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -45,6 +47,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
   const [isRenaming, setIsRenaming] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
+  const [showRecordingWarning, setShowRecordingWarning] = useState(false)
 
   useEffect(() => {
     const loadSubjectData = async () => {
@@ -170,6 +173,15 @@ export default function SubjectPage({ params }: SubjectPageProps) {
     return `${mb}MB`
   }
 
+  const handleStopAndStartNew = async () => {
+    setShowRecordingWarning(false)
+    await recording.stopRecording()
+    // 잠시 대기 후 녹음 페이지로 이동
+    setTimeout(() => {
+      router.push(`/subjects/${subjectId}/record`)
+    }, 500)
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -184,7 +196,13 @@ export default function SubjectPage({ params }: SubjectPageProps) {
             </div>
 
             <Button 
-              onClick={() => router.push(`/subjects/${subjectId}/record`)}
+              onClick={() => {
+                if (recording.isRecording) {
+                  setShowRecordingWarning(true)
+                } else {
+                  router.push(`/subjects/${subjectId}/record`)
+                }
+              }}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
             >
               <Mic className="w-4 h-4 mr-2" />
@@ -377,6 +395,33 @@ export default function SubjectPage({ params }: SubjectPageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recording Warning Dialog */}
+      <AlertDialog open={showRecordingWarning} onOpenChange={setShowRecordingWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              녹음이 진행 중입니다
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              현재 다른 녹음이 진행 중입니다. 새로운 녹음을 시작하려면 현재 녹음을 먼저 중단해야 합니다.
+              <br />
+              <br />
+              현재 녹음을 중단하고 새로운 녹음을 시작하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleStopAndStartNew}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              현재 녹음 중단하고 새로 시작
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

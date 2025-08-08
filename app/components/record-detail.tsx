@@ -8,19 +8,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, Edit, Save, X, Play, Pause, Wand2, FileAudio, Brain, AlertCircle, FileText, Clock, Download, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
+
 import { toast } from "sonner"
 import { recordEntries, recordings } from "@/lib/database"
 import type { Recording as DbRecording, RecordEntry } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
-import WhisperProcessor from "./whisper-processor"
+
 import { extractTranscriptBySlides, getCurrentSubtitle } from "@/lib/transcript-utils"
 import { useSidebarContext } from "@/app/contexts/sidebar-context"
 import { SlideAIExplanation } from "./ai-explanation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useSubtitleSettings } from "@/app/contexts/subtitle-settings-context"
+import { useWhisper } from "@/app/contexts/whisper-context"
+import WhisperProcessor from "./whisper-processor"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 
 interface RecordDetailProps {
   recording: DbRecording
@@ -31,6 +35,7 @@ interface RecordDetailProps {
 export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplanation }: RecordDetailProps) {
   const { isSidebarCollapsed } = useSidebarContext()
   const { settings: subtitleSettings } = useSubtitleSettings()
+  const { getTaskStatus, startTranscription } = useWhisper()
   const router = useRouter()
   const [recordEntriesList, setRecordEntriesList] = useState<RecordEntry[]>([])
   const [editingEntry, setEditingEntry] = useState<RecordEntry | null>(null)
@@ -43,6 +48,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [currentSlideImage, setCurrentSlideImage] = useState<string | null>(null)
   const [slideLoading, setSlideLoading] = useState(false)
   const [showWhisperDialog, setShowWhisperDialog] = useState(false)
+  const [whisperOptions, setWhisperOptions] = useState({
+    stableTs: true,
+    removeRepeated: true,
+    merge: true,
+    prompt: ''
+  })
   const [slideTranscripts, setSlideTranscripts] = useState<Array<{
     slideNumber: number;
     startTime: string;
@@ -567,6 +578,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   }
 
   const hasTranscript = recording.transcript !== null && recording.transcript !== undefined
+  const whisperTask = getTaskStatus(recording.id)
   const hasAIAnalysis = recordEntriesList.some(entry => 
     entry.ai_explanation && Object.keys(entry.ai_explanation).length > 0
   )
@@ -672,17 +684,31 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
                     : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
                 </p>
-                <Button 
-                  onClick={() => setShowWhisperDialog(true)}
-                  className={`w-full bg-gradient-to-r ${
-                    hasTranscript
-                      ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
-                      : 'from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
-                  }`}
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  {hasTranscript ? "자막 · 텍스트 다시 생성" : "AI 자막 · 텍스트 생성"}
-                </Button>
+                {whisperTask && ['preparing', 'uploading', 'processing', 'arranging', 'saving'].includes(whisperTask.status) ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{whisperTask.statusMessage}</p>
+                      <span className="text-sm text-gray-500">{whisperTask.progress}%</span>
+                    </div>
+                    <Progress value={whisperTask.progress} className="h-2" />
+                    <p className="text-xs text-gray-500 text-center">
+                      페이지를 벗어나도 작업은 계속됩니다
+                    </p>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={() => setShowWhisperDialog(true)}
+                    className={`w-full bg-gradient-to-r ${
+                      hasTranscript
+                        ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
+                        : 'from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
+                    }`}
+                    disabled={whisperTask?.status === 'processing'}
+                  >
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    {hasTranscript ? "자막 · 텍스트 다시 생성" : "AI 자막 · 텍스트 생성"}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1421,19 +1447,18 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
         </div>
       )}
 
+
       {/* Whisper Dialog */}
       <Dialog open={showWhisperDialog} onOpenChange={setShowWhisperDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           <VisuallyHidden.Root>
-                            <DialogTitle>AI 자막 · 텍스트 생성</DialogTitle>
+            <DialogTitle>AI 자막 · 텍스트 생성</DialogTitle>
           </VisuallyHidden.Root>
           <WhisperProcessor
             recordingId={recording.id}
             audioUrl={recording.audio_url}
             onBack={() => {
               setShowWhisperDialog(false)
-              // 변환 완료 후 recording 데이터 새로고침이 필요하면 여기서 처리
-              router.refresh() // 페이지 데이터 새로고침
             }}
           />
         </DialogContent>

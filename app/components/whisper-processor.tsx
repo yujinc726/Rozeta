@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, Upload, Wand2, Download, FileAudio, X, Database } from "lucide-react"
 import { toast } from "sonner"
 import { recordings } from "@/lib/database"
+import { useWhisper } from "@/app/contexts/whisper-context"
 
 interface WhisperProcessorProps {
   recordingId?: string
@@ -32,7 +33,9 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
   const [progress, setProgress] = useState(0)
   const [rawSubtitles, setRawSubtitles] = useState("")
   const [arrangedSubtitles, setArrangedSubtitles] = useState("")
-
+  
+  const { startTranscription } = useWhisper()
+  const [isStarting, setIsStarting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
   // Load audio from URL if provided
@@ -210,15 +213,39 @@ export default function WhisperProcessor({ recordingId, audioUrl, onBack }: Whis
 
               {/* 텍스트 변환 버튼 */}
               <Button
-                onClick={processAudio}
-                disabled={!selectedFile || isProcessing}
+                onClick={async () => {
+                  if (!recordingId || !audioUrl) {
+                    toast.error("녹음 정보가 없습니다.")
+                    return
+                  }
+                  
+                  setIsStarting(true)
+                  
+                  // 백그라운드 작업을 시작하고 즉시 모달 닫기
+                  startTranscription(recordingId, audioUrl, {
+                    stableTs,
+                    removeRepeated,
+                    merge,
+                    prompt
+                  }).catch(error => {
+                    console.error('Failed to start transcription:', error)
+                    toast.error('텍스트 변환 시작에 실패했습니다.')
+                  })
+                  
+                  // 즉시 모달 닫고 알림 표시
+                  toast.info('텍스트 변환이 시작되었습니다. 백그라운드에서 진행됩니다.')
+                  if (onBack) {
+                    onBack()
+                  }
+                }}
+                disabled={!selectedFile || isStarting}
                 className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium"
                 size="lg"
               >
-                {isProcessing ? (
+                {isStarting ? (
                   <>
                     <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    텍스트 변환 중...
+                    시작하는 중...
                   </>
                 ) : (
                   <>

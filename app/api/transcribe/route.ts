@@ -18,19 +18,58 @@ export async function POST(request: NextRequest) {
     }
 
   try {
-    const formData = await request.formData();
-    const audioFile = formData.get('audio') as File;
-    const model = formData.get('modelSize') as string || 'large-v3'; // faster-whisper model
-    const language = formData.get('language') as string || 'Auto';
-    const prompt = formData.get('prompt') as string || '';
+    let audio_base64: string;
+    let model: string = 'large-v3';
+    let language: string = 'Auto';
+    let prompt: string = '';
+    let stable_ts: boolean = true;
+    let remove_repeated: boolean = true;
+    let merge: boolean = true;
 
-    if (!audioFile) {
-      return NextResponse.json({ error: '오디오 파일이 없습니다.' }, { status: 400 });
+    // Content-Type 확인하여 처리 방식 결정
+    const contentType = request.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
+      // JSON 방식 (URL 전달)
+      const json = await request.json();
+      const { audio_url, stable_ts: st, remove_repeated: rr, merge: m, prompt: p } = json;
+      
+      if (!audio_url) {
+        return NextResponse.json({ error: '오디오 URL이 없습니다.' }, { status: 400 });
+      }
+      
+      // URL에서 오디오 파일 다운로드
+      const audioResponse = await fetch(audio_url);
+      if (!audioResponse.ok) {
+        throw new Error('오디오 파일을 다운로드할 수 없습니다.');
+      }
+      
+      const arrayBuffer = await audioResponse.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      audio_base64 = buffer.toString('base64');
+      
+      // 옵션 설정
+      if (st !== undefined) stable_ts = st;
+      if (rr !== undefined) remove_repeated = rr;
+      if (m !== undefined) merge = m;
+      if (p) prompt = p;
+      
+    } else {
+      // FormData 방식 (파일 직접 업로드)
+      const formData = await request.formData();
+      const audioFile = formData.get('audio') as File;
+      model = formData.get('modelSize') as string || 'large-v3';
+      language = formData.get('language') as string || 'Auto';
+      prompt = formData.get('prompt') as string || '';
+
+      if (!audioFile) {
+        return NextResponse.json({ error: '오디오 파일이 없습니다.' }, { status: 400 });
+      }
+
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      audio_base64 = buffer.toString('base64');
     }
-
-    const arrayBuffer = await audioFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const audio_base64 = buffer.toString('base64');
     
     console.log(`Submitting job to RunPod endpoint: ${RUNPOD_ENDPOINT_ID}`);
 
@@ -48,6 +87,10 @@ export async function POST(request: NextRequest) {
           language: language === 'Auto' ? undefined : language,
           word_timestamps: true,
           initial_prompt: prompt || undefined,
+          // Whisper 옵션 추가 (향후 RunPod 워커가 지원할 경우를 위해)
+          // stable_ts,
+          // remove_repeated,
+          // merge
         },
       }),
     });
@@ -119,13 +162,17 @@ export async function POST(request: NextRequest) {
     
     // 사용자 자막 설정 가져오기
     let maxWords = 12; // 기본값
-    try {
-      const settings = await settingsDb.get();
-      if (settings?.subtitles?.max_words) {
-        maxWords = settings.subtitles.max_words;
+    
+    // JSON 방식(백그라운드 작업)일 때는 사용자 설정을 건너뛰고 기본값 사용
+    if (!contentType.includes('application/json')) {
+      try {
+        const settings = await settingsDb.get();
+        if (settings?.subtitles?.max_words) {
+          maxWords = settings.subtitles.max_words;
+        }
+      } catch (error) {
+        console.warn('Failed to load subtitle settings, using default:', error);
       }
-    } catch (error) {
-      console.warn('Failed to load subtitle settings, using default:', error);
     }
 
     // 단어 단위 자막을 적절한 구문 단위로 그룹화
