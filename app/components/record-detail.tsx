@@ -665,12 +665,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       <div className="p-6 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* 음성 텍스트 변환 카드 */}
-          <Card className={hasTranscript ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20" : "border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20"}>
+          <Card className={hasTranscript ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20" : "border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20"}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg ${hasTranscript ? "bg-green-100 dark:bg-green-800" : "bg-orange-100 dark:bg-orange-800"}`}>
-                    <FileAudio className={`w-6 h-6 ${hasTranscript ? "text-green-600 dark:text-green-300" : "text-orange-600 dark:text-orange-300"}`} />
+                  <div className={`p-3 rounded-lg ${hasTranscript ? "bg-green-100 dark:bg-green-800" : "bg-purple-100 dark:bg-purple-800"}`}>
+                    <FileAudio className={`w-6 h-6 ${hasTranscript ? "text-green-600 dark:text-green-300" : "text-purple-600 dark:text-purple-300"}`} />
                   </div>
                   <div>
                     <CardTitle className="text-lg">AI 자막 · 텍스트 생성</CardTitle>
@@ -679,27 +679,43 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     </CardDescription>
                   </div>
                 </div>
-                {hasTranscript ? (
-                  <Badge className="bg-green-600">완료</Badge>
+                {whisperTask?.status === 'processing' ? (
+                  <Badge className={`${whisperTask.isRegenerate ? 'bg-green-600' : 'bg-purple-600'} text-white hover:${whisperTask.isRegenerate ? 'bg-green-600' : 'bg-purple-600'}`}>
+                    {whisperTask.isRegenerate ? '재생성중' : '생성중'}
+                  </Badge>
+                ) : hasTranscript ? (
+                  <Badge className="bg-green-600 text-white hover:bg-green-600">완료</Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-orange-600 text-white">대기</Badge>
+                  <Badge variant="secondary" className="bg-purple-600 text-white hover:bg-purple-600">대기</Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  {hasTranscript
-                    ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
-                    : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
-                </p>
+                {!(whisperTask && ['preparing', 'uploading', 'processing', 'arranging', 'saving'].includes(whisperTask.status) && whisperTask.isRegenerate) && (
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {hasTranscript
+                      ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
+                      : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
+                  </p>
+                )}
                 {whisperTask && ['preparing', 'uploading', 'processing', 'arranging', 'saving'].includes(whisperTask.status) ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">{whisperTask.statusMessage}</p>
                       <span className="text-sm text-gray-500">{whisperTask.progress}%</span>
                     </div>
-                    <Progress value={whisperTask.progress} className="h-2" />
+                    <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full transition-all duration-300 ease-in-out"
+                        style={{
+                          width: `${whisperTask.progress}%`,
+                          background: whisperTask.isRegenerate 
+                            ? 'linear-gradient(135deg, #22c55e, #14b8a6)'  // 재생성 - 연두색 그라데이션
+                            : 'linear-gradient(135deg, #8b5cf6, #ec4899)'   // 첫 생성 - 보라색 그라데이션
+                        }}
+                      />
+                    </div>
                     <p className="text-xs text-gray-500 text-center">
                       페이지를 벗어나도 작업은 계속됩니다
                     </p>
@@ -713,7 +729,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     className={`w-full bg-gradient-to-r ${
                       hasTranscript
                         ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
-                        : 'from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
+                        : 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
                     }`}
                     disabled={whisperTask?.status === 'processing'}
                   >
@@ -726,12 +742,30 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           </Card>
 
           {/* AI 설명 카드 */}
-          <Card className={hasAIAnalysis ? "border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20" : "border-gray-200 dark:border-gray-700"}>
+          <Card className={
+            hasAIAnalysis 
+              ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20"  // 분석 완료 - 연두색
+              : hasTranscript 
+                ? "border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20"  // 분석 가능 - 보라색
+                : "border-gray-200 dark:border-gray-700"  // 분석 불가 - 회색
+          }>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg ${hasAIAnalysis ? "bg-purple-100 dark:bg-purple-800" : "bg-gray-100 dark:bg-gray-700"}`}>
-                    <Brain className={`w-6 h-6 ${hasAIAnalysis ? "text-purple-600 dark:text-purple-300" : "text-gray-400 dark:text-gray-500"}`} />
+                  <div className={`p-3 rounded-lg ${
+                    hasAIAnalysis 
+                      ? "bg-green-100 dark:bg-green-800"  // 분석 완료 - 연두색
+                      : hasTranscript 
+                        ? "bg-purple-100 dark:bg-purple-800"  // 분석 가능 - 보라색
+                        : "bg-gray-100 dark:bg-gray-700"  // 분석 불가 - 회색
+                  }`}>
+                    <Brain className={`w-6 h-6 ${
+                      hasAIAnalysis 
+                        ? "text-green-600 dark:text-green-300"  // 분석 완료 - 연두색
+                        : hasTranscript 
+                          ? "text-purple-600 dark:text-purple-300"  // 분석 가능 - 보라색
+                          : "text-gray-400 dark:text-gray-500"  // 분석 불가 - 회색
+                    }`} />
                   </div>
                   <div>
                     <CardTitle className="text-lg">AI 강의 설명</CardTitle>
@@ -740,12 +774,16 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     </CardDescription>
                   </div>
                 </div>
-                {hasAIAnalysis ? (
-                  <Badge className="bg-purple-600">완료</Badge>
+                {aiTask?.status === 'analyzing' ? (
+                  <Badge className={`${aiTask.isRegenerate ? 'bg-green-600' : 'bg-purple-600'} text-white hover:${aiTask.isRegenerate ? 'bg-green-600' : 'bg-purple-600'}`}>
+                    {aiTask.isRegenerate ? '재분석중' : '분석중'}
+                  </Badge>
+                ) : hasAIAnalysis ? (
+                  <Badge className="bg-green-600 text-white hover:bg-green-600">완료</Badge>
                 ) : hasTranscript ? (
-                  <Badge variant="secondary">준비됨</Badge>
+                  <Badge variant="secondary" className="bg-purple-600 text-white hover:bg-purple-600">준비됨</Badge>
                 ) : (
-                  <Badge variant="outline">대기</Badge>
+                  <Badge variant="outline" className="border-gray-300 hover:bg-gray-50">대기</Badge>
                 )}
               </div>
             </CardHeader>
@@ -756,7 +794,17 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     <p className="text-sm font-medium">{aiTask.statusMessage}</p>
                     <span className="text-sm text-gray-500">{aiTask.progress}%</span>
                   </div>
-                  <Progress value={aiTask.progress} className="h-2" />
+                  <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full transition-all duration-300 ease-in-out"
+                      style={{
+                        width: `${aiTask.progress}%`,
+                        background: hasAIAnalysis 
+                          ? 'linear-gradient(135deg, #22c55e, #14b8a6)'  // 완료된 상태 - 연두색 그라데이션
+                          : 'linear-gradient(135deg, #8b5cf6, #ec4899)'   // 분석 중 상태 - 보라색 그라데이션
+                      }}
+                    />
+                  </div>
                   <p className="text-xs text-gray-500 text-center">
                     페이지를 벗어나도 작업은 계속됩니다
                   </p>
@@ -771,7 +819,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                       setIsAIRegenerate(true)
                       setShowAIAnalysisDialog(true)
                     }}
-                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
                     disabled={aiTask?.status === 'analyzing'}
                   >
                     <Brain className="w-4 h-4 mr-2" />
@@ -788,8 +836,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                       setIsAIRegenerate(false)
                       setShowAIAnalysisDialog(true)
                     }}
-                    variant="outline"
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     disabled={aiTask?.status === 'analyzing'}
                   >
                     <Brain className="w-4 h-4 mr-2" />

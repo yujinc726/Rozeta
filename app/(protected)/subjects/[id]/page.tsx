@@ -28,6 +28,8 @@ import type { Subject as DbSubject, Recording as DbRecording } from "@/lib/supab
 import { auth } from "@/lib/supabase"
 import { toast } from "sonner"
 import { useRecording } from "@/app/contexts/recording-context"
+import { useWhisper } from "@/app/contexts/whisper-context"
+import { useAIAnalysis } from "@/app/contexts/ai-analysis-context"
 
 interface SubjectPageProps {
   params: Promise<{
@@ -38,6 +40,8 @@ interface SubjectPageProps {
 export default function SubjectPage({ params }: SubjectPageProps) {
   const router = useRouter()
   const recording = useRecording()
+  const { getTaskStatus: getWhisperStatus } = useWhisper()
+  const { getTaskStatus: getAIStatus } = useAIAnalysis()
   const [subject, setSubject] = useState<DbSubject | null>(null)
   const [recordings, setRecordings] = useState<DbRecording[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -145,16 +149,38 @@ export default function SubjectPage({ params }: SubjectPageProps) {
   }
 
   // AI 상태 확인 함수 (홈 화면과 동일)
-  const getAIStatus = (recording: DbRecording) => {
+  const getRecordingStatus = (recording: DbRecording) => {
+    // 백그라운드 작업 상태 확인
+    const whisperTask = getWhisperStatus(recording.id)
+    const aiTask = getAIStatus(recording.id)
+    
+    // AI 분석 상태
+    if (aiTask?.status === 'analyzing') {
+      return { 
+        icon: Loader2, 
+        text: aiTask.isRegenerate ? 'AI 재분석중' : 'AI 분석중', 
+        color: aiTask.isRegenerate ? 'text-green-600 bg-green-50' : 'text-purple-600 bg-purple-50'
+      }
+    }
     if (recording.ai_analyzed_at) {
       return { icon: CheckCircle, text: 'AI 완료', color: 'text-green-600 bg-green-50' }
     }
+    
+    // 텍스트 변환 상태
+    if (whisperTask?.status === 'processing') {
+      return { 
+        icon: Loader2, 
+        text: whisperTask.isRegenerate ? '텍스트 재생성중' : '텍스트 생성중', 
+        color: whisperTask.isRegenerate ? 'text-green-600 bg-green-50' : 'text-purple-600 bg-purple-50'
+      }
+    }
     if (recording.subtitles) {
-      return { icon: Sparkles, text: 'AI 대기', color: 'text-purple-600 bg-purple-50' }
+      return { icon: Sparkles, text: 'AI 준비', color: 'text-purple-600 bg-purple-50' }
     }
     if (recording.transcript) {
-      return { icon: Loader2, text: '처리 중', color: 'text-blue-600 bg-blue-50' }
+      return { icon: FileText, text: '자막 대기', color: 'text-orange-600 bg-orange-50' }
     }
+    
     return { icon: Clock, text: '미처리', color: 'text-gray-600 bg-gray-50' }
   }
 
@@ -235,8 +261,8 @@ export default function SubjectPage({ params }: SubjectPageProps) {
             ) : (
               <div className="space-y-3">
                 {recordings.map((recording) => {
-                  const aiStatus = getAIStatus(recording)
-                  const IconComponent = aiStatus.icon
+                  const recordingStatus = getRecordingStatus(recording)
+                  const IconComponent = recordingStatus.icon
                   
                   return (
                     <div
@@ -279,12 +305,12 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                         <div className="flex items-center gap-2">
                           <Badge 
                             variant="secondary"
-                            className={`${aiStatus.color} border-0`}
+                            className={`${recordingStatus.color} border-0`}
                           >
                             <IconComponent className={`h-3 w-3 mr-1 ${
-                              aiStatus.text === '처리 중' ? 'animate-spin' : ''
+                              ['텍스트 생성중', 'AI 분석중'].includes(recordingStatus.text) ? 'animate-spin' : ''
                             }`} />
-                            {aiStatus.text}
+                            {recordingStatus.text}
                           </Badge>
                           <div onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>

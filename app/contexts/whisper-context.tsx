@@ -12,6 +12,7 @@ interface WhisperTask {
   error?: string
   startedAt: Date
   completedAt?: Date
+  isRegenerate?: boolean
 }
 
 interface WhisperContextType {
@@ -77,7 +78,8 @@ export const WhisperProvider: React.FC<{ children: React.ReactNode }> = ({ child
       status: 'preparing',
       progress: 0,
       statusMessage: '오디오 파일을 준비하는 중...',
-      startedAt: new Date()
+      startedAt: new Date(),
+      isRegenerate: options.regenerate || false
     })
 
     try {

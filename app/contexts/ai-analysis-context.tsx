@@ -11,6 +11,7 @@ interface AIAnalysisTask {
   error?: string
   startedAt?: Date
   completedAt?: Date
+  isRegenerate?: boolean
 }
 
 interface AIAnalysisContextType {
@@ -52,7 +53,8 @@ export const AIAnalysisProvider: React.FC<{ children: ReactNode }> = ({ children
       status: 'preparing',
       progress: 0,
       statusMessage: '녹음 데이터를 준비하는 중...',
-      startedAt: new Date()
+      startedAt: new Date(),
+      isRegenerate: options.regenerate || false
     })
 
     try {
