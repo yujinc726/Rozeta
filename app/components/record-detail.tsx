@@ -403,18 +403,14 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause()
-        if (animationRef.current !== null) {
-      cancelAnimationFrame(animationRef.current)
-    }
       } else {
         audioRef.current.play()
-        animationRef.current = requestAnimationFrame(updateProgress)
       }
       setIsPlaying(!isPlaying)
     }
   }
 
-  // 재생 진행 상황 업데이트
+  // 재생 진행 상황 업데이트 - onTimeUpdate 이벤트에서 처리
   const updateProgress = () => {
     if (audioRef.current) {
       const currentAudioTime = audioRef.current.currentTime
@@ -426,9 +422,6 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           const subtitle = getCurrentSubtitle(recording.subtitles, currentAudioTime)
           setCurrentSubtitle(subtitle)
         }
-      }
-      if (!audioRef.current.paused) {
-        animationRef.current = requestAnimationFrame(updateProgress)
       }
     }
   }
@@ -495,9 +488,6 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   // 재생 종료 시
   const handleEnded = () => {
     setIsPlaying(false)
-    if (animationRef.current !== null) {
-      cancelAnimationFrame(animationRef.current)
-    }
   }
 
   const seekToTime = (timeString: string) => {
@@ -511,7 +501,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       const minutes = parseInt(parts[1]) || 0
       const secondsParts = parts[2].split('.')
       const seconds = parseInt(secondsParts[0]) || 0
-      const milliseconds = parseInt(secondsParts[1] || '0') || 0
+      const milliseconds = secondsParts[1] ? parseInt(secondsParts[1].padEnd(3, '0').slice(0, 3)) : 0
       
       const totalSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
       
@@ -519,12 +509,22 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       if (!isFinite(totalSeconds) || totalSeconds < 0) return
       if (duration > 0 && totalSeconds > duration) return
       
+      // 정확한 시간 탐색을 위해 일시적으로 멈춤
+      const wasPlaying = !audioRef.current.paused
+      
+      // currentTime 설정 후 약간의 지연을 두어 정확성 향상
       audioRef.current.currentTime = totalSeconds
+      
+      // UI 즉시 업데이트
       setCurrentTime(totalSeconds)
       
-      if (!isPlaying) {
-        audioRef.current.play()
-        setIsPlaying(true)
+      // 자동 재생 (이전에 재생 중이었거나, 사용자가 시간을 클릭한 경우)
+      if (wasPlaying || !isPlaying) {
+        setTimeout(() => {
+          audioRef.current?.play().then(() => {
+            setIsPlaying(true)
+          }).catch(e => console.error('Error starting playback:', e))
+        }, 50)
       }
     } catch (error) {
       console.error('Failed to seek to time:', error)
@@ -1226,6 +1226,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             onCanPlayThrough={handleCanPlay}
             onDurationChange={handleDurationChange}
             onTimeUpdate={(e) => {
+              // 재생 진행 상황 업데이트
+              updateProgress()
+              
               // duration이 아직 설정되지 않았다면 여기서도 시도
               if (duration === 0 && audioRef.current) {
                 const audioDuration = audioRef.current.duration
@@ -1236,6 +1239,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               }
             }}
             onEnded={handleEnded}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
             onError={(e) => {
               console.error('Audio loading error:', e)
               const audio = e.currentTarget as HTMLAudioElement
@@ -1251,7 +1256,18 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               {/* 현재 재생 정보 */}
               <div className="flex items-center gap-3 min-w-0 w-72">
                 <div className="shrink-0">
-                  <FileAudio className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <defs>
+                      <linearGradient id="headphone-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#8b5cf6" />
+                        <stop offset="100%" stopColor="#ec4899" />
+                      </linearGradient>
+                    </defs>
+                    <path 
+                      d="M12 1a9 9 0 0 0-9 9v7c0 1.66 1.34 3 3 3h0c1.66 0 3-1.34 3-3v-3c0-1.66-1.34-3-3-3H4.5v-1a7.5 7.5 0 0 1 15 0v1H18c-1.66 0-3 1.34-3 3v3c0 1.66 1.34 3 3 3h0c1.66 0 3-1.34 3-3v-7a9 9 0 0 0-9-9z" 
+                      fill="url(#headphone-gradient)"
+                    />
+                  </svg>
                 </div>
                 
                 <div className="min-w-0 flex-1">
@@ -1298,15 +1314,24 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                       if (isFinite(percent) && percent >= 0 && percent <= 1) {
                         const newTime = percent * duration
                         if (isFinite(newTime) && newTime >= 0 && newTime <= duration) {
+                          // 재생 상태 저장
+                          const wasPlaying = !audioRef.current.paused
+                          
+                          // 시간 설정
                           audioRef.current.currentTime = newTime
                           setCurrentTime(newTime)
+                          
+                          // 재생 중이었다면 계속 재생
+                          if (wasPlaying && audioRef.current.paused) {
+                            audioRef.current.play().catch(e => console.error('Error resuming playback:', e))
+                          }
                         }
                       }
                     }
                   }}
                 >
                   <div
-                    className="h-full bg-purple-600 transition-all duration-100 pointer-events-none"
+                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-100 pointer-events-none"
                     style={{ 
                       width: `${
                         duration > 0 && isFinite(duration) && isFinite(currentTime) 
@@ -1329,10 +1354,19 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     onClick={() => setShowLiveSubtitle(!showLiveSubtitle)}
                     size="sm"
                     variant="ghost"
-                    className={`gap-1 text-xs ${showLiveSubtitle ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`group gap-1 text-xs hover:bg-transparent ${showLiveSubtitle ? '' : 'text-gray-500 dark:text-gray-400'}`}
                   >
-                    <FileText className="w-3 h-3" />
-                    실시간 자막
+                    <FileText className={`w-3 h-3 transition-colors ${
+                      showLiveSubtitle 
+                        ? 'text-purple-500 group-hover:text-purple-600' 
+                        : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                    }`} />
+                    <span className={showLiveSubtitle 
+                      ? 'font-medium bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all' 
+                      : 'transition-colors group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                    }>
+                      실시간 자막
+                    </span>
                   </Button>
                 )}
                 <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">

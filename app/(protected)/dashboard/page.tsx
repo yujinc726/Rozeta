@@ -55,13 +55,13 @@ export default function DashboardPage() {
     const loadDashboardData = async () => {
       try {
         // 인증 확인
-        const { data: { user } } = await auth.getUser()
-        if (!user) {
-          router.push('/auth')
-          return
-        }
-        setUser(user)
-        
+      const { data: { user } } = await auth.getUser()
+      if (!user) {
+        router.push('/auth')
+        return
+      }
+      setUser(user)
+      
         // 병렬로 데이터 로드
         const [subs, recs, availablePlans, userSub, displayName] = await Promise.all([
           subjectsDb.list(user.id),
@@ -71,7 +71,7 @@ export default function DashboardPage() {
           profiles.getDisplayName()
         ])
         
-        setSubjects(subs)
+      setSubjects(subs)
         setRecordings(recs)
         setPlans(availablePlans)
         setSubscription(userSub)
@@ -106,7 +106,7 @@ export default function DashboardPage() {
       } catch (error) {
         console.error('대시보드 데이터 로드 실패:', error)
       } finally {
-        setIsLoading(false)
+      setIsLoading(false)
       }
     }
     
