@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
@@ -60,6 +60,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
   const [allSlideThumbnails, setAllSlideThumbnails] = useState<string[][]>([])
   const [slideMemo, setSlideMemo] = useState('')
   const [uploadingPdfIndex, setUploadingPdfIndex] = useState<number | null>(null)
+  const [pdfLastPages, setPdfLastPages] = useState<number[]>([]) // 각 PDF별 마지막 페이지 번호
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -92,12 +93,32 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
 
   // Update current slide thumbnail when PDF or slide changes
   useEffect(() => {
-    if (selectedPdfIndex >= 0 && allSlideThumbnails[selectedPdfIndex] && currentSlideNumber > 0) {
-      setCurrentSlideThumbnail(allSlideThumbnails[selectedPdfIndex][currentSlideNumber - 1])
-    } else {
-      setCurrentSlideThumbnail(null)
-    }
+    // 썸네일 업데이트를 지연시켜 모든 상태 변경이 완료된 후 실행
+    const timeoutId = setTimeout(() => {
+      if (selectedPdfIndex >= 0 && allSlideThumbnails[selectedPdfIndex] && currentSlideNumber > 0) {
+        setCurrentSlideThumbnail(allSlideThumbnails[selectedPdfIndex][currentSlideNumber - 1])
+      } else {
+        setCurrentSlideThumbnail(null)
+      }
+    }, 0)
+    
+    return () => clearTimeout(timeoutId)
   }, [selectedPdfIndex, currentSlideNumber, allSlideThumbnails])
+
+  // 현재 슬라이드 번호가 변경될 때마다 해당 PDF의 마지막 페이지 업데이트
+  useEffect(() => {
+    if (selectedPdfIndex >= 0 && currentSlideNumber > 0) {
+      setPdfLastPages(prev => {
+        const newPages = [...prev]
+        // 배열 크기를 현재 PDF 인덱스까지 확장
+        while (newPages.length <= selectedPdfIndex) {
+          newPages.push(1)
+        }
+        newPages[selectedPdfIndex] = currentSlideNumber
+        return newPages
+      })
+    }
+  }, [selectedPdfIndex, currentSlideNumber])
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000)
@@ -124,6 +145,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
         toast.info('PDF 파일을 분석하는 중...')
         const pageCount = await getPdfPageCount(file)
         setTotalSlides(pageCount)
+        // 새로 업로드된 PDF는 1페이지로 시작
         setCurrentSlideNumber(1)
 
         const thumbnails: string[] = []
@@ -137,6 +159,8 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
           }
         }
         setAllSlideThumbnails(prev => [...prev, thumbnails])
+        // 새 PDF의 초기 페이지를 1로 설정
+        setPdfLastPages(prev => [...prev, 1])
         toast.success(`${pageCount}개의 슬라이드를 감지했습니다.`)
         setUploadingPdfIndex(null) // 업로드 완료
       } catch (error) {
@@ -591,9 +615,11 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                   {/* 미선택 옵션 */}
                   <button
                         onClick={() => {
-                          setSelectedPdfIndex(-1)
-                          setCurrentSlideNumber(1)
-                          setTotalSlides(0)
+                          startTransition(() => {
+                            setSelectedPdfIndex(-1)
+                            setTotalSlides(0)
+                            // 슬라이드 번호는 유지
+                          })
                         }}
                         className={cn(
                           "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all",
@@ -614,14 +640,25 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
                           key={index}
                           onClick={async () => {
                             if (uploadingPdfIndex === index) return; // 업로드 중일 때 클릭 방지
-                            setSelectedPdfIndex(index)
-                            setCurrentSlideNumber(1)
+                            
                             try {
                               const pageCount = await getPdfPageCount(file)
-                              setTotalSlides(pageCount)
+                              // 해당 PDF의 마지막 페이지 계산 (없으면 1페이지)
+                              const lastPage = pdfLastPages[index] || 1
+                              const targetSlideNumber = Math.min(lastPage, pageCount)
+                              
+                              // 모든 상태를 한번에 업데이트하여 중간 상태 방지
+                              startTransition(() => {
+                                setSelectedPdfIndex(index)
+                                setTotalSlides(pageCount)
+                                setCurrentSlideNumber(targetSlideNumber)
+                              })
                             } catch (error) {
                               console.error('PDF 페이지 수 계산 실패:', error)
-                              setTotalSlides(0)
+                              startTransition(() => {
+                                setSelectedPdfIndex(index)
+                                setTotalSlides(0)
+                              })
                             }
                           }}
                           disabled={uploadingPdfIndex === index}
