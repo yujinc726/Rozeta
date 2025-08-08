@@ -215,13 +215,15 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
 
   const pauseRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.pause()
       setIsPaused(true)
       pausedAtRef.current = Date.now()
     }
   }
 
   const resumeRecording = () => {
-    if (mediaRecorderRef.current && isPaused) {
+    if (mediaRecorderRef.current && isPaused && mediaRecorderRef.current.state === 'paused') {
+      mediaRecorderRef.current.resume()
       setIsPaused(false)
       const pauseDuration = Date.now() - pausedAtRef.current
       pausedTimeRef.current += pauseDuration
@@ -240,8 +242,20 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
       })
       setSlideSyncs(updatedSlideSyncs)
       
-      mediaRecorderRef.current.stop()
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+      // 일시정지 상태인 경우 먼저 재개한 후 정지
+      if (mediaRecorderRef.current.state === 'paused') {
+        mediaRecorderRef.current.resume()
+        // 재개 후 잠시 대기하여 상태 변경 완료 보장
+        setTimeout(() => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop()
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+          }
+        }, 10)
+      } else {
+        mediaRecorderRef.current.stop()
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+      }
       
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
@@ -443,8 +457,17 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
               </div>
               {isRecording && (
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium text-red-600">녹음 중</span>
+                  {isPaused ? (
+                    <>
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <span className="text-sm font-medium text-yellow-600">일시정지</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-red-600">녹음 중</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>
