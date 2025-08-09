@@ -640,6 +640,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
   // 터치 드래그 시작
   const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault() // 스크롤 방지
     setIsDragging(true)
     handleProgressChange(e.nativeEvent)
   }
@@ -654,6 +655,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   // 터치 드래그 중
   const handleTouchMove = (e: TouchEvent) => {
     if (isDragging) {
+      e.preventDefault() // 스크롤 방지
       handleProgressChange(e)
     }
   }
@@ -669,7 +671,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleDragEnd)
-      window.addEventListener('touchmove', handleTouchMove)
+      window.addEventListener('touchmove', handleTouchMove, { passive: false })
       window.addEventListener('touchend', handleDragEnd)
       
       return () => {
@@ -1689,6 +1691,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             right: 0,
             width: isMobile ? '100vw' : (isSidebarCollapsed ? 'calc(100vw - 4rem)' : 'calc(100vw - 20rem)')
           }}
+          onTouchStart={(e) => {
+            // 오디오 컨테이너에서 터치 시작 시 스크롤 방지 준비
+            if (isMobile) {
+              e.stopPropagation()
+            }
+          }}
         >
           <audio
             ref={audioRef}
@@ -1771,7 +1779,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   onClick={togglePlayPause}
                   size="icon"
                   variant="ghost"
-                  className={`${isMobile ? 'h-7 w-7' : 'h-8 w-8'} shrink-0`}
+                  className={`${isMobile ? 'h-7 w-7' : 'h-8 w-8'} shrink-0 ${!isMobile && 'hover:bg-gray-100'} mobile-tap-feedback`}
                 >
                   {isPlaying ? (
                     <Pause className="w-4 h-4" />
@@ -1807,6 +1815,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     className={`w-full ${
                       isDragging ? 'h-3' : 'h-2'
                     } bg-gray-200 rounded-full overflow-hidden cursor-pointer relative transition-all duration-200`}
+                    style={{ touchAction: 'none' }}
                     onMouseDown={handleMouseDown}
                     onTouchStart={handleTouchStart}
                   >
@@ -1835,13 +1844,13 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     onClick={() => setShowLiveSubtitle(!showLiveSubtitle)}
                     size="sm"
                     variant="ghost"
-                    className={`group gap-1 text-xs hover:bg-transparent ${showLiveSubtitle ? '' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`group gap-1 text-xs ${!isMobile && 'hover:bg-gray-100'} ${showLiveSubtitle ? '' : 'text-gray-500 dark:text-gray-400'} mobile-tap-feedback`}
                     title="실시간 자막"
                   >
                     <FileText className={`w-3 h-3 transition-colors ${
                       showLiveSubtitle 
-                        ? 'text-purple-500 group-hover:text-purple-600' 
-                        : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                        ? `text-purple-500 ${!isMobile && 'group-hover:text-purple-600'}` 
+                        : `text-gray-500 dark:text-gray-400 ${!isMobile && 'group-hover:text-gray-700 dark:group-hover:text-gray-300'}`
                     }`} />
                     {!isMobile && (
                     <span className={showLiveSubtitle 
