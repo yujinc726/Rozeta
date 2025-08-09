@@ -251,7 +251,8 @@ function ProtectedLayoutContent({
       )}>
         {/* 모바일 헤더 */}
         {isMobile && (
-          <header className="flex items-center justify-between h-14 px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 safe-top">
+          <header className="bg-white dark:bg-gray-900 safe-top">
+            <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200 dark:border-gray-700">
             <Button
               variant="ghost"
               size="icon"
@@ -261,15 +262,19 @@ function ProtectedLayoutContent({
               <Menu className="h-5 w-5" />
             </Button>
             
-            <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 mobile-tap-feedback"
+            >
               <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                 <Sparkles className="w-3 h-3 text-white" />
               </div>
               <span className="font-bold text-lg gradient-text">Rozeta</span>
-            </div>
+            </button>
             
             {/* 빈 공간 유지용 */}
             <div className="w-10" />
+            </div>
           </header>
         )}
         
