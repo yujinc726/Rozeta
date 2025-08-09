@@ -226,7 +226,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isMobile ? 'max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] rounded-xl m-4' : 'max-w-4xl max-h-[90vh]'} overflow-y-auto`}>
+      <DialogContent className={`${isMobile ? 'max-w-full h-full max-h-full rounded-none' : 'max-w-4xl max-h-[90vh]'} overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle>설정</DialogTitle>
         </DialogHeader>

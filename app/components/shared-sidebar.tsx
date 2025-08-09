@@ -212,31 +212,31 @@ export default function SharedSidebar({
 
           <div className="space-y-2">
             {!isCollapsed && isAddingSubject && (
-              <div className={`p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3 ${isMobile ? 'mx-2' : ''}`}>
-                <Input
-                  value={newSubjectName}
-                  onChange={(e) => setNewSubjectName(e.target.value)}
-                  placeholder="과목명 입력"
-                  className={`${isMobile ? 'h-10' : 'h-8'} mobile-tap-feedback`}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddSubject()}
-                  autoFocus
-                />
-                <div className="flex gap-2">
+              <div className={`p-3 bg-gray-50 dark:bg-gray-800 rounded-lg ${isMobile ? 'mx-2' : ''}`}>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newSubjectName}
+                    onChange={(e) => setNewSubjectName(e.target.value)}
+                    placeholder="과목명 입력"
+                    className={`h-10 flex-1 mobile-tap-feedback`}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddSubject()}
+                    autoFocus
+                  />
                   <Button 
-                    size={isMobile ? "default" : "sm"} 
+                    size="sm"
                     onClick={handleAddSubject}
-                    className={`${isMobile ? 'flex-1 h-10' : ''} mobile-tap-feedback`}
+                    className={`h-8 px-3 mobile-tap-feedback`}
                   >
                     추가
                   </Button>
                   <Button 
-                    size={isMobile ? "default" : "sm"} 
+                    size="sm"
                     variant="ghost" 
                     onClick={() => {
                       setIsAddingSubject(false)
                       setNewSubjectName("")
                     }}
-                    className={`${isMobile ? 'flex-1 h-10' : ''} mobile-tap-feedback`}
+                    className={`h-8 px-3 mobile-tap-feedback`}
                   >
                     취소
                   </Button>
@@ -465,7 +465,7 @@ export default function SharedSidebar({
 
       {/* Edit Subject Dialog */}
       <Dialog open={!!editingSubject} onOpenChange={() => setEditingSubject(null)}>
-        <DialogContent className={isMobile ? 'max-w-sm mx-4 rounded-xl' : ''}>
+        <DialogContent className={isMobile ? 'max-w-sm mx-4' : ''}>
           <DialogHeader>
             <DialogTitle>과목명 변경</DialogTitle>
           </DialogHeader>
@@ -501,7 +501,7 @@ export default function SharedSidebar({
 
       {/* Delete Subject Dialog */}
       <Dialog open={!!showDeleteDialog} onOpenChange={() => setShowDeleteDialog(null)}>
-        <DialogContent className={isMobile ? 'max-w-sm mx-4 rounded-xl' : ''}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>과목 삭제</DialogTitle>
           </DialogHeader>

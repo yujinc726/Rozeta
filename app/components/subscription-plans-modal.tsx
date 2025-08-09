@@ -62,7 +62,7 @@ export default function SubscriptionPlansModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${isMobile ? 'max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] rounded-xl m-4' : 'max-w-6xl max-h-[90vh]'} overflow-y-auto`}>
+      <DialogContent className={`${isMobile ? 'max-w-full h-full max-h-full rounded-none' : 'max-w-6xl max-h-[90vh]'} overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle className={`${isMobile ? 'text-xl' : 'text-2xl'} text-center`}>구독 플랜 선택</DialogTitle>
           <DialogDescription className="text-center">

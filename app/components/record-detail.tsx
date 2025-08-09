@@ -1729,7 +1729,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
       {/* Whisper Dialog */}
       <Dialog open={showWhisperDialog} onOpenChange={setShowWhisperDialog}>
-        <DialogContent className={`${isMobile ? 'max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] rounded-xl m-4' : 'max-w-2xl max-h-[90vh]'} overflow-y-auto p-0`}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           <VisuallyHidden.Root>
                             <DialogTitle>AI 자막 · 텍스트 생성</DialogTitle>
           </VisuallyHidden.Root>
@@ -1747,7 +1747,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
 
       {/* AI Analysis Dialog */}
       <Dialog open={showAIAnalysisDialog} onOpenChange={setShowAIAnalysisDialog}>
-        <DialogContent className={`${isMobile ? 'max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] rounded-xl m-4' : 'max-w-2xl max-h-[90vh]'} overflow-y-auto p-0`}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           <VisuallyHidden.Root>
             <DialogTitle>AI 강의 분석</DialogTitle>
           </VisuallyHidden.Root>
