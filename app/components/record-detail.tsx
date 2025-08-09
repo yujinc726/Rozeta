@@ -76,9 +76,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [aiOverview, setAiOverview] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<'whisper' | 'ai'>('whisper')
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragPosition, setDragPosition] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
   const animationRef = useRef<number | null>(null)
   const hasLoadedProgress = useRef(false)
+  const progressBarRef = useRef<HTMLDivElement>(null)
 
   // 슬라이드 기록 불러오기
   useEffect(() => {
@@ -607,6 +610,76 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       console.error('Failed to seek to time:', error)
     }
   }
+
+  // 프로그레스 바 위치 계산 및 시간 설정
+  const handleProgressChange = (e: MouseEvent | TouchEvent) => {
+    if (!progressBarRef.current || !audioRef.current || duration <= 0) return
+
+    const rect = progressBarRef.current.getBoundingClientRect()
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clickX = clientX - rect.left
+    const percent = Math.max(0, Math.min(1, clickX / rect.width))
+    
+    if (isFinite(percent)) {
+      const newTime = percent * duration
+      setDragPosition(percent) // 드래그 위치 업데이트
+      if (isFinite(newTime) && newTime >= 0 && newTime <= duration) {
+        audioRef.current.currentTime = newTime
+        setCurrentTime(newTime)
+        saveProgress(newTime)
+      }
+    }
+  }
+
+  // 마우스 드래그 시작
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    handleProgressChange(e.nativeEvent)
+  }
+
+  // 터치 드래그 시작
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true)
+    handleProgressChange(e.nativeEvent)
+  }
+
+  // 드래그 중
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      handleProgressChange(e)
+    }
+  }
+
+  // 터치 드래그 중
+  const handleTouchMove = (e: TouchEvent) => {
+    if (isDragging) {
+      handleProgressChange(e)
+    }
+  }
+
+  // 드래그 종료
+  const handleDragEnd = () => {
+    setIsDragging(false)
+    setDragPosition(currentTime / duration) // 현재 위치로 리셋
+  }
+
+  // 드래그 이벤트 리스너 등록
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleDragEnd)
+      window.addEventListener('touchmove', handleTouchMove)
+      window.addEventListener('touchend', handleDragEnd)
+      
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', handleDragEnd)
+        window.removeEventListener('touchmove', handleTouchMove)
+        window.removeEventListener('touchend', handleDragEnd)
+      }
+    }
+  }, [isDragging])
 
   const formatDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600)
@@ -1711,36 +1784,34 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   {formatTimeFromSeconds(currentTime).substring(0, 8)}
                 </span>
                 
-                <div 
-                  className={`flex-1 ${isMobile ? 'h-3' : 'h-2'} bg-gray-200 rounded-full overflow-hidden cursor-pointer`}
-                  onClick={(e) => {
-                    if (audioRef.current && duration > 0 && isFinite(duration)) {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      const clickX = e.clientX - rect.left
-                      const percent = clickX / rect.width
-                      
-                      // 값 검증
-                      if (isFinite(percent) && percent >= 0 && percent <= 1) {
-                        const newTime = percent * duration
-                        if (isFinite(newTime) && newTime >= 0 && newTime <= duration) {
-                          // 재생 상태 저장
-                          const wasPlaying = !audioRef.current.paused
-                          
-                          // 시간 설정
-                          audioRef.current.currentTime = newTime
-                          setCurrentTime(newTime)
-                          
-                          // 재생 중이었다면 계속 재생
-                          if (wasPlaying && audioRef.current.paused) {
-                            audioRef.current.play().catch(e => console.error('Error resuming playback:', e))
-                          }
-                        }
-                      }
-                    }
-                  }}
-                >
-                  <div
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-100 pointer-events-none"
+                <div className="relative flex-1">
+                  {/* 드래그 중 시간 표시 */}
+                  {isDragging && (
+                    <div 
+                      className="absolute -top-10"
+                      style={{
+                        left: `${dragPosition * 100}%`,
+                        transform: 'translateX(-50%)'
+                      }}
+                    >
+                      <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded-md whitespace-nowrap relative">
+                        {formatTimeFromSeconds(dragPosition * duration).substring(0, 8)}
+                        {/* 화살표 */}
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div 
+                    ref={progressBarRef}
+                    className={`w-full ${
+                      isDragging ? 'h-3' : 'h-2'
+                    } bg-gray-200 rounded-full overflow-hidden cursor-pointer relative transition-all duration-200`}
+                    onMouseDown={handleMouseDown}
+                    onTouchStart={handleTouchStart}
+                  >
+                    <div
+                      className={`h-full bg-gradient-to-r from-purple-500 to-pink-500 ${isDragging ? '' : 'transition-all duration-100'} pointer-events-none`}
                     style={{ 
                       width: `${
                         duration > 0 && isFinite(duration) && isFinite(currentTime) 
@@ -1749,6 +1820,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                       }%` 
                     }}
                   />
+                  </div>
                 </div>
                 
                 <span className="text-xs text-gray-500 tabular-nums shrink-0">
@@ -1772,12 +1844,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                         : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
                     }`} />
                     {!isMobile && (
-                      <span className={showLiveSubtitle 
-                        ? 'font-medium bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all' 
-                        : 'transition-colors group-hover:text-gray-700 dark:group-hover:text-gray-300'
-                      }>
-                        실시간 자막
-                      </span>
+                    <span className={showLiveSubtitle 
+                      ? 'font-medium bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all' 
+                      : 'transition-colors group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                    }>
+                      실시간 자막
+                    </span>
                     )}
                   </Button>
                 )}
