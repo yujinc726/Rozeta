@@ -112,8 +112,11 @@ export default function SharedSidebar({
   return (
     <TooltipProvider>
       <div className={cn(
-        "fixed left-0 top-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 z-50",
-        isCollapsed ? "w-16" : "w-80"
+        "h-full bg-white dark:bg-gray-900 flex flex-col transition-all duration-300",
+        isCollapsed ? "w-16" : "w-full",
+        // 데스크톱에서만 fixed position과 border 적용
+        "md:fixed md:left-0 md:top-0 md:h-screen md:border-r md:border-gray-200 md:dark:border-gray-700 md:z-50",
+        isCollapsed ? "md:w-16" : "md:w-80"
       )}>
         {/* Header */}
       <div className={cn(

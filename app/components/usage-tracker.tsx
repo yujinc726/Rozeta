@@ -75,7 +75,7 @@ export default function UsageTracker({
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-lg">사용량 현황</CardTitle>
+            <CardTitle className="text-base md:text-lg">사용량 현황</CardTitle>
             <Badge variant={subscription ? 'default' : 'secondary'}>
               {plan.display_name}
             </Badge>
@@ -88,18 +88,18 @@ export default function UsageTracker({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-              <span className="font-medium text-gray-900 dark:text-gray-100">저장 공간</span>
+              <HardDrive className="h-4 w-4 md:h-5 md:w-5 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm md:text-base font-medium text-gray-900 dark:text-gray-100">저장 공간</span>
             </div>
-            <span className={`text-sm font-semibold ${getTextColor(storagePercent)}`}>
+            <span className={`text-xs md:text-sm font-semibold ${getTextColor(storagePercent)}`}>
               {storageUsedGB}GB / {storageLimitGB}GB
             </span>
           </div>
           
           <div className="space-y-2">
-            <Progress 
+                          <Progress 
               value={storagePercent} 
-              className="h-3"
+              className="h-2 md:h-3"
               indicatorClassName={getProgressColor(storagePercent)}
             />
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -110,14 +110,14 @@ export default function UsageTracker({
             {/* 상세 용량 정보 */}
             {storageUsedDetailed && storageUsedDetailed.totalBytes > 0 && (
               <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1 gap-2">
                   <span className="flex items-center gap-1">
                     <Mic className="h-3 w-3" />
                     녹음 파일
                   </span>
                   <span>{(storageUsedDetailed.audioBytes / (1024 * 1024 * 1024)).toFixed(2)}GB</span>
                 </div>
-                <div className="flex justify-between text-xs text-gray-500">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 gap-2">
                   <span className="flex items-center gap-1">
                     <FileText className="h-3 w-3" />
                     강의안 파일
@@ -129,7 +129,7 @@ export default function UsageTracker({
           </div>
 
           {storagePercent >= 90 && (
-            <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg">
+            <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
               <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
               <span className="text-xs text-red-600">
                 저장 공간이 거의 가득 찼습니다. 플랜을 업그레이드하거나 파일을 정리하세요.
@@ -142,10 +142,10 @@ export default function UsageTracker({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-gray-600" />
-              <span className="font-medium">AI 변환 시간</span>
+              <Clock className="h-4 w-4 md:h-5 md:w-5 text-gray-600" />
+              <span className="text-sm md:text-base font-medium">AI 변환 시간</span>
             </div>
-            <span className={`text-sm font-semibold ${
+            <span className={`text-xs md:text-sm font-semibold ${
               aiMinutesLimit ? getTextColor(aiMinutesPercent) : 'text-purple-600'
             }`}>
               {aiMinutesLimit 
@@ -160,7 +160,7 @@ export default function UsageTracker({
               <div className="space-y-2">
                 <Progress 
                   value={aiMinutesPercent} 
-                  className="h-3"
+                  className="h-2 md:h-3"
                   indicatorClassName={getProgressColor(aiMinutesPercent)}
                 />
                 <div className="flex justify-between text-xs text-gray-500">
@@ -170,7 +170,7 @@ export default function UsageTracker({
               </div>
 
               {aiMinutesPercent >= 90 && (
-                <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg">
+                <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
                   <span className="text-xs text-red-600">
                     이번 달 AI 변환 시간이 거의 소진되었습니다.

@@ -23,6 +23,7 @@ import {
   FileText
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { subjects as subjectsDb, recordings as recordingsDb } from "@/lib/database"
 import type { Subject as DbSubject, Recording as DbRecording } from "@/lib/supabase"
 import { auth } from "@/lib/supabase"
@@ -39,6 +40,7 @@ interface SubjectPageProps {
 
 export default function SubjectPage({ params }: SubjectPageProps) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const recording = useRecording()
   const { getTaskStatus: getWhisperStatus } = useWhisper()
   const { getTaskStatus: getAIStatus } = useAIAnalysis()
@@ -212,11 +214,11 @@ export default function SubjectPage({ params }: SubjectPageProps) {
     <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="relative bg-gradient-to-r from-slate-50/50 to-white dark:from-gray-800/50 dark:to-gray-900 border-b border-slate-200/60 dark:border-gray-700/60 shadow-sm">
-        <div className="px-6 py-5">
-          <div className="flex items-center justify-between">
+        <div className="px-4 md:px-6 py-4 md:py-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-medium text-slate-900 dark:text-gray-100">{subject.name}</h1>
-              <p className="text-sm text-slate-500 dark:text-gray-400 mt-2">
+              <h1 className="text-xl md:text-2xl font-medium text-slate-900 dark:text-gray-100">{subject.name}</h1>
+              <p className="text-xs md:text-sm text-slate-500 dark:text-gray-400 mt-1 md:mt-2">
                 전체 기록 {recordings.length}개
               </p>
             </div>
@@ -229,7 +231,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                   router.push(`/subjects/${subjectId}/record`)
                 }
               }}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 w-full md:w-auto"
             >
               <Mic className="w-4 h-4 mr-2" />
               새 기록 시작
@@ -239,15 +241,15 @@ export default function SubjectPage({ params }: SubjectPageProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-6 overflow-auto">
+      <div className="flex-1 p-4 md:p-6 overflow-auto">
         {/* All Records Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileAudio className="w-5 h-5 text-purple-600" />
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <FileAudio className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
               기록 목록
             </CardTitle>
-            <CardDescription>수업 중 작성한 모든 기록들을 확인하고 관리하세요</CardDescription>
+            <CardDescription className="text-sm">수업 중 작성한 모든 기록들을 확인하고 관리하세요</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -267,59 +269,64 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                   return (
                     <div
                       key={recording.id}
-                      className="group p-4 rounded-lg border hover:border-purple-300 hover:bg-purple-50/30 transition-all cursor-pointer"
+                      className="group p-3 md:p-4 rounded-lg border hover:border-purple-300 hover:bg-purple-50/30 transition-all cursor-pointer"
                       onClick={() => router.push(`/subjects/${subjectId}/recordings/${recording.id}`)}
                     >
                                               <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium group-hover:text-purple-600 transition-colors">
+                          <h4 className="text-sm md:text-base font-medium group-hover:text-purple-600 transition-colors truncate">
                             {recording.title}
                           </h4>
-                          <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                          <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-gray-500 mt-1">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {new Date(recording.created_at).toLocaleString('ko-KR', {
-                                year: 'numeric',
-                                weekday: 'short',
-                                month: 'numeric', 
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                              })}
+                              {isMobile
+                                ? new Date(recording.created_at).toLocaleDateString('ko-KR', {
+                                    month: 'numeric', 
+                                    day: 'numeric'
+                                  })
+                                : new Date(recording.created_at).toLocaleString('ko-KR', {
+                                    year: 'numeric',
+                                    weekday: 'short',
+                                    month: 'numeric', 
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true
+                                  })}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {recording.duration ? `${Math.floor(recording.duration / 60)}분` : '처리중'}
                             </span>
-                            <span className="flex items-center gap-1">
+                            <span className="hidden md:flex items-center gap-1">
                               <Mic className="h-3 w-3" />
                               {getAudioSize(recording)}
                             </span>
-                            <span className="flex items-center gap-1">
+                            <span className="hidden md:flex items-center gap-1">
                               <FileText className="h-3 w-3" />
                               {getPdfSize(recording)}
                             </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                                                  <div className="flex items-center gap-1 md:gap-2">
                           <Badge 
                             variant="secondary"
                             className={`${recordingStatus.color} border-0`}
                           >
                             <IconComponent className={`h-3 w-3 mr-1 ${
-                              ['텍스트 생성중', 'AI 분석중'].includes(recordingStatus.text) ? 'animate-spin' : ''
+                              ['텍스트 생성중', 'AI 분석중', '텍스트 재생성중', 'AI 재분석중'].includes(recordingStatus.text) ? 'animate-spin' : ''
                             }`} />
                             {recordingStatus.text}
                           </Badge>
                           <div onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="hover:bg-gray-200"
-                              >
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="hover:bg-gray-200 h-8 w-8 p-0"
+                                >
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                               </DropdownMenuTrigger>
@@ -338,7 +345,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                                       이름 변경
                                     </DropdownMenuItem>
                                   </DialogTrigger>
-                                  <DialogContent>
+                                  <DialogContent className="max-w-[90vw] md:max-w-lg">
                                     <DialogHeader>
                                       <DialogTitle>기록 이름 변경</DialogTitle>
                                       <DialogDescription>
@@ -357,7 +364,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                                         }}
                                       />
                                     </div>
-                                    <div className="flex justify-end gap-2">
+                                    <div className="flex flex-col-reverse md:flex-row md:justify-end gap-2">
                                       <Button 
                                         variant="outline" 
                                         onClick={() => {
@@ -365,12 +372,14 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                                           setNewTitle('')
                                           setIsRenameDialogOpen(false)
                                         }}
+                                        className="w-full md:w-auto"
                                       >
                                         취소
                                       </Button>
                                       <Button 
                                         onClick={handleRenameRecording}
                                         disabled={isRenaming || !newTitle.trim()}
+                                        className="w-full md:w-auto"
                                       >
                                         {isRenaming ? '변경 중...' : '변경'}
                                       </Button>
@@ -388,7 +397,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                                       기록 삭제
                                     </DropdownMenuItem>
                                   </AlertDialogTrigger>
-                                  <AlertDialogContent>
+                                  <AlertDialogContent className="max-w-[90vw] md:max-w-lg">
                                     <AlertDialogHeader>
                                       <AlertDialogTitle>기록 삭제</AlertDialogTitle>
                                       <AlertDialogDescription>
@@ -396,11 +405,11 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                                         이 작업은 되돌릴 수 없습니다.
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>취소</AlertDialogCancel>
+                                    <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                                      <AlertDialogCancel className="w-full sm:w-auto">취소</AlertDialogCancel>
                                       <AlertDialogAction
                                         onClick={() => handleDeleteRecording(recording)}
-                                        className="bg-red-600 hover:bg-red-700"
+                                        className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
                                         disabled={isDeleting}
                                       >
                                         {isDeleting ? '삭제 중...' : '삭제'}
@@ -424,7 +433,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
 
       {/* Recording Warning Dialog */}
       <AlertDialog open={showRecordingWarning} onOpenChange={setShowRecordingWarning}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] md:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
@@ -437,11 +446,11 @@ export default function SubjectPage({ params }: SubjectPageProps) {
               현재 녹음을 중단하고 새로운 녹음을 시작하시겠습니까?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">취소</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleStopAndStartNew}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
             >
               현재 녹음 중단하고 새로 시작
             </AlertDialogAction>

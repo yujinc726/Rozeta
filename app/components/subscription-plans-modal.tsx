@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, X, Star, Zap, Shield, Infinity } from 'lucide-react'
 import { SubscriptionPlan } from '@/lib/supabase'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface SubscriptionPlansModalProps {
   isOpen: boolean
@@ -23,6 +24,8 @@ export default function SubscriptionPlansModal({
   currentPlanId,
   onSelectPlan
 }: SubscriptionPlansModalProps) {
+  const isMobile = useIsMobile()
+  
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ko-KR', {
       style: 'currency',
@@ -59,15 +62,15 @@ export default function SubscriptionPlansModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${isMobile ? 'max-w-full h-full max-h-full rounded-none' : 'max-w-6xl max-h-[90vh]'} overflow-y-auto`}>
         <DialogHeader>
-          <DialogTitle className="text-2xl text-center">구독 플랜 선택</DialogTitle>
+          <DialogTitle className={`${isMobile ? 'text-xl' : 'text-2xl'} text-center`}>구독 플랜 선택</DialogTitle>
           <DialogDescription className="text-center">
             학습 스타일에 맞는 플랜을 선택하세요
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div className={`grid grid-cols-1 ${isMobile ? 'gap-4 mt-4' : 'md:grid-cols-3 gap-6 mt-6'}`}>
           {plans.map((plan) => {
             const isCurrentPlan = plan.id === currentPlanId
             const isPremium = plan.name.toLowerCase() === 'premium'
@@ -75,8 +78,8 @@ export default function SubscriptionPlansModal({
             return (
               <Card 
                 key={plan.id} 
-                className={`relative transition-all hover:scale-105 ${getPlanColor(plan.name)} ${
-                  isPremium ? 'md:-mt-4 md:mb-4' : ''
+                className={`relative transition-all ${isMobile ? '' : 'hover:scale-105'} ${getPlanColor(plan.name)} ${
+                  isPremium && !isMobile ? 'md:-mt-4 md:mb-4' : ''
                 }`}
               >
                 {isPremium && (

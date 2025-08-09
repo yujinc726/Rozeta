@@ -64,32 +64,32 @@ export default function DashboardStats({
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
       {stats.map((stat, index) => {
         const IconComponent = stat.icon
         
         return (
           <Card key={index} className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+            <CardContent className="p-4 md:pt-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0">
+                <div className="space-y-1 flex-1">
+                  <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-300">
                     {stat.title}
                   </p>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    <span className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {stat.value}
                     </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                    <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
                       {stat.unit}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 hidden md:block">
                     {stat.description}
                   </p>
                 </div>
-                <div className={`p-2 rounded-lg ${stat.color}`}>
-                  <IconComponent className="h-5 w-5" />
+                <div className={`p-1.5 md:p-2 rounded-lg ${stat.color} self-start md:self-auto`}>
+                  <IconComponent className="h-4 w-4 md:h-5 md:w-5" />
                 </div>
               </div>
             </CardContent>

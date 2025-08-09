@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Wand2, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { useAIAnalysis } from "@/app/contexts/ai-analysis-context"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface AIAnalysisModalProps {
   recordingId: string
@@ -26,6 +27,7 @@ export default function AIAnalysisModal({
   isRegenerate = false,
   onBack 
 }: AIAnalysisModalProps) {
+  const isMobile = useIsMobile()
   const [customPrompt, setCustomPrompt] = useState("")
   const { startAnalysis } = useAIAnalysis()
   const [isStarting, setIsStarting] = useState(false)
@@ -58,8 +60,8 @@ export default function AIAnalysisModal({
     <div className="bg-white">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className={`${isMobile ? '' : 'max-w-4xl'} mx-auto flex items-center justify-between`}>
+          <div className="flex items-center gap-2 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
@@ -67,19 +69,21 @@ export default function AIAnalysisModal({
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <div>
-              <h1 className="text-xl font-bold flex items-center gap-2">
+            <div className="flex-1">
+              <h1 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold flex items-center gap-2`}>
                 <Sparkles className="w-5 h-5 text-purple-500" />
-                {isRegenerate ? 'AI 강의 분석 재생성' : 'AI 강의 분석'}
+                <span className={isMobile ? 'truncate' : ''}>
+                  {isRegenerate ? 'AI 강의 분석 재생성' : 'AI 강의 분석'}
+                </span>
               </h1>
-              <p className="text-sm text-gray-500">{recordingTitle}</p>
+              <p className="text-sm text-gray-500 truncate">{recordingTitle}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-8 max-w-4xl mx-auto space-y-6">
+      <div className={`${isMobile ? 'p-4' : 'p-8 max-w-4xl'} mx-auto space-y-6`}>
         {/* Custom Prompt */}
         <Card>
           <CardHeader>

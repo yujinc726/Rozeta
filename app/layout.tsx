@@ -6,8 +6,22 @@ import { Toaster } from 'sonner'
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-      title: "Rozeta - AI 강의 노트",
+  title: "Rozeta - AI 강의 노트",
   description: "강의 녹음을 AI가 자동으로 정리해주는 스마트 노트 서비스",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Rozeta"
+  },
+  manifest: "/manifest.json"
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover'
 }
 
 export default function RootLayout({

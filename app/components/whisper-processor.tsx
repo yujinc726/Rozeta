@@ -15,6 +15,7 @@ import { ArrowLeft, Upload, Wand2, Download, FileAudio, X, Database } from "luci
 import { toast } from "sonner"
 import { recordings } from "@/lib/database"
 import { useWhisper } from "@/app/contexts/whisper-context"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface WhisperProcessorProps {
   recordingId?: string
@@ -25,6 +26,7 @@ interface WhisperProcessorProps {
 
 export default function WhisperProcessor({ recordingId, audioUrl, isRegenerate = false, onBack }: WhisperProcessorProps) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [stableTs, setStableTs] = useState(true)
   const [removeRepeated, setRemoveRepeated] = useState(true)

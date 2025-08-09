@@ -47,8 +47,11 @@ export default function FloatingRecorder() {
   return (
     <div
       className={cn(
-        "fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300"
+        "fixed left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300"
       )}
+      style={{
+        bottom: `calc(1rem + env(safe-area-inset-bottom))`
+      }}
     >
       <Card className={cn(
         "bg-white dark:bg-gray-800 shadow-2xl border-purple-200 dark:border-purple-700",

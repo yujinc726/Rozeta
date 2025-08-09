@@ -15,6 +15,11 @@ import { RecordingProvider } from "@/app/contexts/recording-context"
 import { WhisperProvider } from "@/app/contexts/whisper-context"
 import { AIAnalysisProvider } from "@/app/contexts/ai-analysis-context"
 import FloatingRecorder from "@/app/components/floating-recorder"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import { Menu, Sparkles } from "lucide-react"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 
 function ProtectedLayoutContent({
   children,
@@ -28,6 +33,8 @@ function ProtectedLayoutContent({
   const [selectedSubject, setSelectedSubject] = useState<DbSubject | null>(null)
   const { isSidebarCollapsed, setIsSidebarCollapsed } = useSidebarContext()
   const [isLoading, setIsLoading] = useState(true)
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   // 현재 경로에서 subject ID 추출
   const getSubjectIdFromPath = () => {
@@ -175,31 +182,103 @@ function ProtectedLayoutContent({
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <SharedSidebar
-        subjects={subjects}
-        selectedSubject={selectedSubject}
-        onSelectSubject={(subject) => {
-          router.push(`/subjects/${subject.id}`)
-        }}
-        onAddSubject={handleAddSubject}
-        onEditSubject={handleEditSubject}
-        onDeleteSubject={handleDeleteSubject}
-        onBackToHome={() => router.push('/')}
-        onNavigateHome={() => {
-          setSelectedSubject(null)
-          router.push('/dashboard')
-        }}
-        onOpenSettings={() => router.push('/settings')}
-        currentView={getCurrentView()}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      />
+      {/* 데스크톱 사이드바 */}
+      {!isMobile && (
+        <SharedSidebar
+          subjects={subjects}
+          selectedSubject={selectedSubject}
+          onSelectSubject={(subject) => {
+            router.push(`/subjects/${subject.id}`)
+          }}
+          onAddSubject={handleAddSubject}
+          onEditSubject={handleEditSubject}
+          onDeleteSubject={handleDeleteSubject}
+          onBackToHome={() => router.push('/')}
+          onNavigateHome={() => {
+            setSelectedSubject(null)
+            router.push('/dashboard')
+          }}
+          onOpenSettings={() => router.push('/settings')}
+          currentView={getCurrentView()}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+      )}
+
+      {/* 모바일 드로어 */}
+      {isMobile && (
+        <Sheet open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
+          <SheetContent side="left" className="w-80 p-0">
+            <VisuallyHidden.Root>
+              <SheetHeader>
+                <SheetTitle>메뉴</SheetTitle>
+              </SheetHeader>
+            </VisuallyHidden.Root>
+            <SharedSidebar
+              subjects={subjects}
+              selectedSubject={selectedSubject}
+              onSelectSubject={(subject) => {
+                router.push(`/subjects/${subject.id}`)
+                setMobileDrawerOpen(false)
+              }}
+              onAddSubject={handleAddSubject}
+              onEditSubject={handleEditSubject}
+              onDeleteSubject={handleDeleteSubject}
+              onBackToHome={() => {
+                router.push('/')
+                setMobileDrawerOpen(false)
+              }}
+              onNavigateHome={() => {
+                setSelectedSubject(null)
+                router.push('/dashboard')
+                setMobileDrawerOpen(false)
+              }}
+              onOpenSettings={() => {
+                router.push('/settings')
+                setMobileDrawerOpen(false)
+              }}
+              currentView={getCurrentView()}
+              isCollapsed={false}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* 메인 컨텐츠 영역 */}
       <div className={cn(
-        "flex-1 transition-all duration-300 overflow-auto",
-        isSidebarCollapsed ? "ml-16" : "ml-80"
+        "flex-1 flex flex-col transition-all duration-300 overflow-hidden",
+        !isMobile && (isSidebarCollapsed ? "ml-16" : "ml-80")
       )}>
-        {children}
+        {/* 모바일 헤더 */}
+        {isMobile && (
+          <header className="flex items-center justify-between h-14 px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 safe-top">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileDrawerOpen(true)}
+              className="mobile-tap-feedback"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-3 h-3 text-white" />
+              </div>
+              <span className="font-bold text-lg gradient-text">Rozeta</span>
+            </div>
+            
+            {/* 빈 공간 유지용 */}
+            <div className="w-10" />
+          </header>
+        )}
+        
+        {/* 페이지 컨텐츠 */}
+        <div className="flex-1 overflow-auto">
+          {children}
+        </div>
       </div>
+      
       <FloatingRecorder />
     </div>
   )

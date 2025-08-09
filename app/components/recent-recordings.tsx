@@ -103,7 +103,7 @@ export default function RecentRecordings({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">최근 강의</CardTitle>
+          <CardTitle className="text-lg md:text-xl">최근 강의</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 space-y-3">
@@ -119,7 +119,7 @@ export default function RecentRecordings({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">최근 강의</CardTitle>
+        <CardTitle className="text-base md:text-lg">최근 강의</CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-3">
@@ -130,17 +130,17 @@ export default function RecentRecordings({
           return (
             <div
               key={recording.id}
-              className="group p-4 rounded-lg border hover:border-purple-300 hover:bg-purple-50/30 transition-all cursor-pointer"
+              className="group p-3 md:p-4 rounded-lg border hover:border-purple-300 hover:bg-purple-50/30 transition-all cursor-pointer"
               onClick={() => onPlayRecording?.(recording)}
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-1 md:space-y-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-medium group-hover:text-purple-600 transition-colors">
+                      <h4 className="text-sm md:text-base font-medium group-hover:text-purple-600 transition-colors">
                         {recording.title}
                       </h4>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">
                         {getSubjectName(recording.subject_id)}
                       </p>
                     </div>
@@ -155,7 +155,7 @@ export default function RecentRecordings({
                     </Badge>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-gray-500">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       {formatDate(recording.created_at)}
@@ -164,11 +164,11 @@ export default function RecentRecordings({
                       <Clock className="h-3 w-3" />
                       {formatDuration(recording.duration)}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="hidden md:flex items-center gap-1">
                       <Mic className="h-3 w-3" />
                       {getAudioSize(recording)}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="hidden md:flex items-center gap-1">
                       <FileText className="h-3 w-3" />
                       {getPdfSize(recording)}
                     </span>

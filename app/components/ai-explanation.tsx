@@ -118,22 +118,22 @@ export function SlideAIExplanation({
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="summary" className="gap-1">
-              <Sparkles className="w-3 h-3" />
-              핵심 요약
+          <TabsList className="grid grid-cols-4 w-full h-auto p-1">
+            <TabsTrigger value="summary" className="flex flex-col md:flex-row items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm">
+              <Sparkles className="w-3 h-3 md:w-4 md:h-4" />
+              <span>핵심 요약</span>
             </TabsTrigger>
-            <TabsTrigger value="detailed" className="gap-1">
-              <BookOpen className="w-3 h-3" />
-              상세 설명
+            <TabsTrigger value="detailed" className="flex flex-col md:flex-row items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm">
+              <BookOpen className="w-3 h-3 md:w-4 md:h-4" />
+              <span>상세 설명</span>
             </TabsTrigger>
-            <TabsTrigger value="connections" className="gap-1">
-              <Link className="w-3 h-3" />
-              연결 학습
+            <TabsTrigger value="connections" className="flex flex-col md:flex-row items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm">
+              <Link className="w-3 h-3 md:w-4 md:h-4" />
+              <span>연결 학습</span>
             </TabsTrigger>
-            <TabsTrigger value="exam" className="gap-1">
-              <Target className="w-3 h-3" />
-              시험 대비
+            <TabsTrigger value="exam" className="flex flex-col md:flex-row items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm">
+              <Target className="w-3 h-3 md:w-4 md:h-4" />
+              <span>시험 대비</span>
             </TabsTrigger>
           </TabsList>
 

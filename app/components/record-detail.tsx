@@ -27,6 +27,7 @@ import WhisperProcessor from "./whisper-processor"
 import AIAnalysisModal from "./ai-analysis-modal"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface RecordDetailProps {
   recording: DbRecording
@@ -40,6 +41,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const { getTaskStatus, startTranscription } = useWhisper()
   const { getTaskStatus: getAITaskStatus, startAnalysis } = useAIAnalysis()
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [recordEntriesList, setRecordEntriesList] = useState<RecordEntry[]>([])
   const [editingEntry, setEditingEntry] = useState<RecordEntry | null>(null)
   const [editedData, setEditedData] = useState<RecordEntry | null>(null)
@@ -73,6 +75,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [editedTitle, setEditedTitle] = useState(recording.title)
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [aiOverview, setAiOverview] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<'whisper' | 'ai'>('whisper')
   const audioRef = useRef<HTMLAudioElement>(null)
   const animationRef = useRef<number | null>(null)
 
@@ -599,7 +602,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
     <div className="flex-1 bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="relative bg-gradient-to-r from-slate-50/50 to-white dark:from-gray-800/50 dark:to-gray-900 border-b border-slate-200/60 dark:border-gray-700/60 shadow-sm">
-        <div className="px-6 py-5">
+        <div className="px-4 md:px-6 py-4 md:py-5">
                         {isEditingTitle ? (
                 <Input
                   value={editedTitle}
@@ -616,7 +619,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   }}
                   className="w-auto min-w-0 max-w-fit h-auto bg-transparent border-0 p-0 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 shadow-none"
                   style={{ 
-                    fontSize: '1.5rem',
+                    fontSize: isMobile ? '1.25rem' : '1.5rem',
                     fontWeight: '500',
                     lineHeight: '2rem',
                     color: 'rgb(15 23 42)',
@@ -626,7 +629,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 />
               ) : (
                 <h1 
-                  className="text-2xl font-medium text-slate-900 dark:text-gray-100 cursor-pointer hover:text-slate-700 dark:hover:text-gray-300 hover:bg-slate-100/60 dark:hover:bg-gray-800/60 transition-all duration-200 rounded-sm inline-block"
+                  className="text-xl md:text-2xl font-medium text-slate-900 dark:text-gray-100 cursor-pointer hover:text-slate-700 dark:hover:text-gray-300 hover:bg-slate-100/60 dark:hover:bg-gray-800/60 transition-all duration-200 rounded-sm inline-block"
                   onClick={() => {
                     setIsEditingTitle(true)
                     setEditedTitle(recording.title)
@@ -636,10 +639,18 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   {recording.title}
                 </h1>
               )}
-          <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400">
-                <Clock className="w-3.5 h-3.5" />
-                <span>{new Date(recording.created_at).toLocaleString('ko-KR', {
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-2">
+            <div className="flex items-center gap-1.5 text-xs md:text-sm text-slate-500 dark:text-gray-400">
+                <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span>{isMobile
+                  ? new Date(recording.created_at).toLocaleDateString('ko-KR', {
+                      month: 'numeric', 
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })
+                  : new Date(recording.created_at).toLocaleString('ko-KR', {
                   year: 'numeric',
                   weekday: 'short',
                   month: 'numeric', 
@@ -652,7 +663,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             {recording.duration && (
               <>
                 <span className="text-slate-300">•</span>
-                <span className="text-sm text-slate-500">
+                <span className="text-xs md:text-sm text-slate-500">
                   {formatDuration(recording.duration)}
                 </span>
               </>
@@ -662,18 +673,215 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       </div>
 
       {/* AI 처리 상태 카드 */}
-      <div className="p-6 pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <div className="p-4 md:p-6 pb-24">
+        {/* 모바일 탭 인터페이스 */}
+        {isMobile ? (
+          <div className="mb-4">
+            {/* 탭 버튼 */}
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => setActiveTab('whisper')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-medium text-sm ${
+                  activeTab === 'whisper'
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}
+              >
+                <FileAudio className="w-4 h-4" />
+                <span>자막·텍스트</span>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('ai')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-medium text-sm ${
+                  activeTab === 'ai'
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}
+              >
+                <Brain className="w-4 h-4" />
+                <span>AI 설명</span>
+              </button>
+            </div>
+            
+            {/* 선택된 탭의 카드 표시 */}
+            <div>
+              {activeTab === 'whisper' ? (
+                // Whisper 카드 내용
+                <Card className={hasTranscript ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20" : "border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20"}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-medium">AI 자막 · 텍스트 생성</h3>
+                      {whisperTask?.status === 'processing' ? (
+                        <Badge className={`text-white text-xs px-1.5 py-0 pointer-events-none ${
+                          whisperTask.isRegenerate ? 'bg-green-600' : 'bg-purple-600'
+                        }`}>
+                          {whisperTask.isRegenerate ? '재생성중' : '생성중'}
+                        </Badge>
+                      ) : hasTranscript ? (
+                        <Badge className="bg-green-600 text-white text-xs px-1.5 py-0 pointer-events-none">완료</Badge>
+                      ) : (
+                        <Badge className="bg-gray-400 text-white text-xs px-1.5 py-0 pointer-events-none">대기</Badge>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {!(whisperTask && ['preparing', 'uploading', 'processing', 'arranging', 'saving'].includes(whisperTask.status) && whisperTask.isRegenerate) && (
+                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                          {hasTranscript
+                            ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
+                            : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
+                        </p>
+                      )}
+                      {whisperTask && ['preparing', 'uploading', 'processing', 'arranging', 'saving'].includes(whisperTask.status) ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium">{whisperTask.statusMessage}</p>
+                            <span className="text-xs text-gray-500">{whisperTask.progress}%</span>
+                          </div>
+                          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full transition-all duration-300 ease-in-out"
+                              style={{
+                                width: `${whisperTask.progress}%`,
+                                background: whisperTask.isRegenerate 
+                                  ? 'linear-gradient(135deg, #22c55e, #14b8a6)'
+                                  : 'linear-gradient(135deg, #8b5cf6, #ec4899)'
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 text-center">
+                            페이지를 벗어나도 작업은 계속됩니다
+                          </p>
+                        </div>
+                      ) : (
+                        <Button 
+                          onClick={() => {
+                            setIsWhisperRegenerate(hasTranscript)
+                            setShowWhisperDialog(true)
+                          }}
+                          className={`w-full bg-gradient-to-r ${
+                            hasTranscript
+                              ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
+                              : 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+                          }`}
+                          disabled={whisperTask?.status === 'processing'}
+                        >
+                          <Wand2 className="w-4 h-4 mr-2" />
+                          {hasTranscript ? "자막 · 텍스트 다시 생성" : "AI 자막 · 텍스트 생성"}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                // AI 설명 카드 내용
+                <Card className={
+                  hasAIAnalysis 
+                    ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20"
+                    : hasTranscript 
+                      ? "border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20"
+                      : "border-gray-200 dark:border-gray-700"
+                }>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-medium">AI 강의 설명</h3>
+                      {aiTask?.status === 'analyzing' ? (
+                        <Badge className={`text-white text-xs px-1.5 py-0 pointer-events-none ${
+                          aiTask.isRegenerate ? 'bg-green-600' : 'bg-purple-600'
+                        }`}>
+                          {aiTask.isRegenerate ? '재분석중' : '분석중'}
+                        </Badge>
+                      ) : hasAIAnalysis ? (
+                        <Badge className="bg-green-600 text-white text-xs px-1.5 py-0 pointer-events-none">완료</Badge>
+                      ) : hasTranscript ? (
+                        <Badge className="bg-purple-600 text-white text-xs px-1.5 py-0 pointer-events-none">준비</Badge>
+                      ) : (
+                        <Badge className="bg-gray-400 text-white text-xs px-1.5 py-0 pointer-events-none">대기</Badge>
+                      )}
+                    </div>
+                    {aiTask && ['preparing', 'analyzing', 'saving'].includes(aiTask.status) ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium">{aiTask.statusMessage}</p>
+                          <span className="text-xs text-gray-500">{aiTask.progress}%</span>
+                        </div>
+                        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full transition-all duration-300 ease-in-out"
+                            style={{
+                              width: `${aiTask.progress}%`,
+                              background: hasAIAnalysis 
+                                ? 'linear-gradient(135deg, #22c55e, #14b8a6)'
+                                : 'linear-gradient(135deg, #8b5cf6, #ec4899)'
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 text-center">
+                          페이지를 벗어나도 작업은 계속됩니다
+                        </p>
+                      </div>
+                    ) : hasAIAnalysis ? (
+                      <div className="space-y-3">
+                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                          AI가 강의 내용을 분석했습니다. 슬라이드별 설명을 확인하세요.
+                        </p>
+                        <Button 
+                          onClick={() => {
+                            setIsAIRegenerate(true)
+                            setShowAIAnalysisDialog(true)
+                          }}
+                          className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
+                          disabled={aiTask?.status === 'analyzing'}
+                        >
+                          <Brain className="w-4 h-4 mr-2" />
+                          AI 설명 다시 생성
+                        </Button>
+                      </div>
+                    ) : hasTranscript ? (
+                      <div className="space-y-3">
+                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                          텍스트 생성이 완료되어 AI 분석을 시작할 수 있습니다.
+                        </p>
+                        <Button 
+                          onClick={() => {
+                            setIsAIRegenerate(false)
+                            setShowAIAnalysisDialog(true)
+                          }}
+                          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                          disabled={aiTask?.status === 'analyzing'}
+                        >
+                          <Brain className="w-4 h-4 mr-2" />
+                          AI 강의 설명 생성
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Alert className="border-gray-200">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">
+                            먼저 음성을 텍스트로 변환해주세요. AI 분석은 텍스트 생성 후 가능합니다.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        ) : (
+          // 데스크톱: 기존 그리드 레이아웃
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
           {/* 음성 텍스트 변환 카드 */}
           <Card className={hasTranscript ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20" : "border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20"}>
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg ${hasTranscript ? "bg-green-100 dark:bg-green-800" : "bg-purple-100 dark:bg-purple-800"}`}>
-                    <FileAudio className={`w-6 h-6 ${hasTranscript ? "text-green-600 dark:text-green-300" : "text-purple-600 dark:text-purple-300"}`} />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className={`p-2 md:p-3 rounded-lg ${hasTranscript ? "bg-green-100 dark:bg-green-800" : "bg-purple-100 dark:bg-purple-800"}`}>
+                    <FileAudio className={`w-5 h-5 md:w-6 md:h-6 ${hasTranscript ? "text-green-600 dark:text-green-300" : "text-purple-600 dark:text-purple-300"}`} />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">AI 자막 · 텍스트 생성</CardTitle>
+                    <CardTitle className="text-base md:text-lg">AI 자막 · 텍스트 생성</CardTitle>
                     <CardDescription>
                       {hasTranscript ? "생성 완료" : "아직 생성되지 않음"}
                     </CardDescription>
@@ -693,17 +901,17 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             <CardContent>
               <div className="space-y-3">
                 {!(whisperTask && ['preparing', 'uploading', 'processing', 'arranging', 'saving'].includes(whisperTask.status) && whisperTask.isRegenerate) && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    {hasTranscript
-                      ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
-                      : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
-                  </p>
+                  <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+                  {hasTranscript
+                    ? "이미 텍스트 생성이 완료되었습니다. 프롬프트를 수정하여 다시 시도할 수 있습니다."
+                    : "음성을 텍스트로 생성하면 AI가 강의 내용을 분석하고 요약해드립니다."}
+                </p>
                 )}
                 {whisperTask && ['preparing', 'uploading', 'processing', 'arranging', 'saving'].includes(whisperTask.status) ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">{whisperTask.statusMessage}</p>
-                      <span className="text-sm text-gray-500">{whisperTask.progress}%</span>
+                      <p className="text-xs md:text-sm font-medium">{whisperTask.statusMessage}</p>
+                      <span className="text-xs md:text-sm text-gray-500">{whisperTask.progress}%</span>
                     </div>
                     <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div 
@@ -721,21 +929,21 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     </p>
                   </div>
                 ) : (
-                  <Button 
+                <Button 
                     onClick={() => {
                       setIsWhisperRegenerate(hasTranscript)
                       setShowWhisperDialog(true)
                     }}
-                    className={`w-full bg-gradient-to-r ${
-                      hasTranscript
-                        ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
+                  className={`w-full bg-gradient-to-r ${
+                    hasTranscript
+                      ? 'from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
                         : 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-                    }`}
+                  }`}
                     disabled={whisperTask?.status === 'processing'}
-                  >
-                    <Wand2 className="w-4 h-4 mr-2" />
-                    {hasTranscript ? "자막 · 텍스트 다시 생성" : "AI 자막 · 텍스트 생성"}
-                  </Button>
+                >
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  {hasTranscript ? "자막 · 텍스트 다시 생성" : "AI 자막 · 텍스트 생성"}
+                </Button>
                 )}
               </div>
             </CardContent>
@@ -751,15 +959,15 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           }>
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg ${
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className={`p-2 md:p-3 rounded-lg ${
                     hasAIAnalysis 
                       ? "bg-green-100 dark:bg-green-800"  // 분석 완료 - 연두색
                       : hasTranscript 
                         ? "bg-purple-100 dark:bg-purple-800"  // 분석 가능 - 보라색
                         : "bg-gray-100 dark:bg-gray-700"  // 분석 불가 - 회색
                   }`}>
-                    <Brain className={`w-6 h-6 ${
+                    <Brain className={`w-5 h-5 md:w-6 md:h-6 ${
                       hasAIAnalysis 
                         ? "text-green-600 dark:text-green-300"  // 분석 완료 - 연두색
                         : hasTranscript 
@@ -768,8 +976,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     }`} />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">AI 강의 설명</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-base md:text-lg">AI 강의 설명</CardTitle>
+                    <CardDescription className="text-xs md:text-sm">
                       {hasAIAnalysis ? "분석 완료" : hasTranscript ? "분석 가능" : "텍스트 생성 필요"}
                     </CardDescription>
                   </div>
@@ -791,8 +999,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               {aiTask && ['preparing', 'analyzing', 'saving'].includes(aiTask.status) ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">{aiTask.statusMessage}</p>
-                    <span className="text-sm text-gray-500">{aiTask.progress}%</span>
+                                          <p className="text-xs md:text-sm font-medium">{aiTask.statusMessage}</p>
+                      <span className="text-xs md:text-sm text-gray-500">{aiTask.progress}%</span>
                   </div>
                   <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div 
@@ -811,7 +1019,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 </div>
               ) : hasAIAnalysis ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
                     AI가 강의 내용을 분석했습니다. 슬라이드별 설명을 확인하세요.
                   </p>
                   <Button 
@@ -822,13 +1030,13 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
                     disabled={aiTask?.status === 'analyzing'}
                   >
-                    <Brain className="w-4 h-4 mr-2" />
+                      <Brain className="w-4 h-4 mr-2" />
                     AI 설명 다시 생성
                   </Button>
                 </div>
               ) : hasTranscript ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
                     텍스트 생성이 완료되어 AI 분석을 시작할 수 있습니다.
                   </p>
                   <Button 
@@ -839,7 +1047,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     disabled={aiTask?.status === 'analyzing'}
                   >
-                    <Brain className="w-4 h-4 mr-2" />
+                      <Brain className="w-4 h-4 mr-2" />
                     AI 분석 시작하기
                   </Button>
                 </div>
@@ -854,6 +1062,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* 녹음 정보 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -884,10 +1093,10 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* 왼쪽: 슬라이드 이미지 */}
                 <div className="lg:col-span-2 space-y-3">
-                  <div className="relative h-96 bg-gray-100 rounded-lg overflow-hidden group">
+                  <div className={`relative ${isMobile ? 'h-64' : 'h-96'} bg-gray-100 rounded-lg overflow-hidden group`}>
                   {slideLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="flex flex-col items-center gap-2">
@@ -993,10 +1202,10 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                         <div className="p-2 bg-amber-100 dark:bg-amber-800 rounded-lg">
                           <Edit className="w-5 h-5 text-amber-600 dark:text-amber-300" />
                         </div>
-                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200">메모</h4>
+                        <h4 className="text-base md:text-lg font-semibold text-gray-800 dark:text-gray-200">메모</h4>
                       </div>
-                      <div className="bg-gradient-to-br from-amber-50/70 to-orange-50/70 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4">
-                        <p className="text-sm text-gray-800 dark:text-gray-200 leading-6 font-medium whitespace-pre-wrap">
+                      <div className="bg-gradient-to-br from-amber-50/70 to-orange-50/70 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 md:p-4">
+                        <p className="text-xs md:text-sm text-gray-800 dark:text-gray-200 leading-5 md:leading-6 font-medium whitespace-pre-wrap">
                           {currentEntry.memo}
                         </p>
                       </div>
@@ -1110,18 +1319,18 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                       <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-gray-700/50">
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant={currentEntry?.id === entry.id ? 'default' : 'secondary'} className="text-sm font-medium">
+                            <Badge variant={currentEntry?.id === entry.id ? 'default' : 'secondary'} className="text-xs md:text-sm font-medium">
                               슬라이드 {entry.slide_number}
                             </Badge>
-                            <span className="text-gray-400 dark:text-gray-500">•</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{entry.material_name}</span>
+                            <span className="text-gray-400 dark:text-gray-500 hidden md:inline">•</span>
+                            <span className="text-xs md:text-sm text-gray-600 dark:text-gray-300">{entry.material_name}</span>
                             <span className="text-gray-400 dark:text-gray-500">•</span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 seekToTime(entry.start_time)
                               }}
-                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                              className="text-xs md:text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
                             >
                               {entry.start_time}
                             </button>
@@ -1133,7 +1342,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                                     e.stopPropagation()
                                     seekToTime(entry.end_time!)
                                   }}
-                                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                                  className="text-xs md:text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
                                 >
                                   {entry.end_time}
                                 </button>
@@ -1346,9 +1555,9 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
         <div 
           className="fixed bottom-0 bg-white border-t border-gray-200 shadow-lg backdrop-blur-sm z-40 transition-all duration-300"
           style={{
-            left: isSidebarCollapsed ? '4rem' : '20rem',
+            left: isMobile ? 0 : (isSidebarCollapsed ? '4rem' : '20rem'),
             right: 0,
-            width: isSidebarCollapsed ? 'calc(100vw - 4rem)' : 'calc(100vw - 20rem)'
+            width: isMobile ? '100vw' : (isSidebarCollapsed ? 'calc(100vw - 4rem)' : 'calc(100vw - 20rem)')
           }}
         >
           <audio
@@ -1386,10 +1595,10 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             className="hidden"
           />
           
-          <div className="w-full px-6 py-3">
-            <div className="flex items-center gap-6">
+          <div className="w-full px-3 md:px-6 py-2 md:py-3">
+            <div className="flex items-center gap-3 md:gap-6">
               {/* 현재 재생 정보 */}
-              <div className="flex items-center gap-3 min-w-0 w-72">
+              <div className={`flex items-center gap-2 md:gap-3 min-w-0 ${isMobile ? 'w-24' : 'w-72'}`}>
                 <div className="shrink-0">
                   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
                     <defs>
@@ -1405,6 +1614,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   </svg>
                 </div>
                 
+                {!isMobile && (
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                     {recording.title}
@@ -1415,6 +1625,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                     </p>
                   )}
                 </div>
+                )}
               </div>
 
               {/* 진행 바와 재생 컨트롤 */}
@@ -1483,7 +1694,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               </div>
 
               {/* 추가 컨트롤 */}
-              <div className="flex items-center gap-2">
+              <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
                 {recording.subtitles && (
                   <Button
                     onClick={() => setShowLiveSubtitle(!showLiveSubtitle)}
@@ -1520,14 +1731,14 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       <Dialog open={showWhisperDialog} onOpenChange={setShowWhisperDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           <VisuallyHidden.Root>
-            <DialogTitle>AI 자막 · 텍스트 생성</DialogTitle>
+                            <DialogTitle>AI 자막 · 텍스트 생성</DialogTitle>
           </VisuallyHidden.Root>
-                      <WhisperProcessor
-              recordingId={recording.id}
-              audioUrl={recording.audio_url}
+          <WhisperProcessor
+            recordingId={recording.id}
+            audioUrl={recording.audio_url}
               isRegenerate={isWhisperRegenerate}
-              onBack={() => {
-                setShowWhisperDialog(false)
+            onBack={() => {
+              setShowWhisperDialog(false)
                 setIsWhisperRegenerate(false)
               }}
             />

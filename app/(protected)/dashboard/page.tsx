@@ -18,6 +18,7 @@ import type {
   UserSubscription
 } from "@/lib/supabase"
 import UsageTracker from "@/app/components/usage-tracker"
+import { useIsMobile } from "@/hooks/use-mobile"
 import SubscriptionPlansModal from "@/app/components/subscription-plans-modal"
 import RecentRecordings from "@/app/components/recent-recordings"
 import DashboardStats from "@/app/components/dashboard-stats"
@@ -35,6 +36,7 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [user, setUser] = useState<any>(null)
   const [userName, setUserName] = useState<string>('사용자')
   const [subjects, setSubjects] = useState<DbSubject[]>([])
@@ -150,18 +152,18 @@ export default function DashboardPage() {
   const hasWarning = storagePercent > 80 || aiMinutesPercent > 80
 
   return (
-    <div className="px-6 py-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="px-4 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* 환영 메시지 */}
-      <div className="flex items-center justify-between pr-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:pr-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
             안녕하세요, {userName}님! 👋
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">오늘도 Rozeta와 함께 열심히 공부해봐요</p>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 mt-1">오늘도 Rozeta와 함께 열심히 공부해봐요</p>
         </div>
         
         {/* 현재 플랜 표시 */}
-        <div className={`px-4 py-3 rounded-xl shadow-sm border ${
+        <div className={`px-3 md:px-4 py-2 md:py-3 rounded-xl shadow-sm border ${
           subscription?.plan?.name === 'premium' 
             ? 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200/50 dark:border-purple-700/50' 
             : subscription?.plan?.name === 'standard'
@@ -170,7 +172,7 @@ export default function DashboardPage() {
         }`}>
           <div className="text-center">
             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">현재 플랜</div>
-            <div className={`font-bold text-xl ${
+            <div className={`font-bold text-lg md:text-xl ${
               subscription?.plan?.name === 'premium'
                 ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600'
                 : subscription?.plan?.name === 'standard'
@@ -206,9 +208,9 @@ export default function DashboardPage() {
       <DashboardStats subjects={subjects} recordings={recordings} />
 
       {/* 메인 콘텐츠 그리드 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 왼쪽: 사용량 트래커 */}
-        <div className="lg:col-span-1">
+      <div className={`grid grid-cols-1 ${isMobile ? 'gap-4' : 'lg:grid-cols-3 gap-6'}`}>
+        {/* 사용량 트래커 */}
+        <div className={isMobile ? 'order-2' : 'lg:col-span-1'}>
           <UsageTracker
             subscription={subscription}
             storageUsed={storageUsed}
@@ -219,8 +221,8 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* 오른쪽: 최근 강의 */}
-        <div className="lg:col-span-2">
+        {/* 최근 강의 */}
+        <div className={isMobile ? 'order-1' : 'lg:col-span-2'}>
           <RecentRecordings
             recordings={recordings}
             subjects={subjects}
@@ -238,20 +240,20 @@ export default function DashboardPage() {
               <Lightbulb className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">💡 학습 팁</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                              <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100 text-base md:text-lg">💡 학습 팁</h3>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-3">
                 더 효과적인 학습을 위한 Rozeta 활용법을 알아보세요.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 text-xs">
+                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
                   <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   <span className="text-gray-700 dark:text-gray-300">AI 설명 기능으로 복습 효과 극대화</span>
                 </div>
-                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded">
+                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
                   <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
                   <span className="text-gray-700 dark:text-gray-300">클라우드 저장으로 언제 어디서나 접근</span>
                 </div>
-                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded">
+                <div className="flex items-center gap-2 p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
                   <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                   <span className="text-gray-700 dark:text-gray-300">과목별 체계적인 학습 관리</span>
                 </div>

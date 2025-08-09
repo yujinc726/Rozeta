@@ -18,6 +18,7 @@ import { auth } from "@/lib/supabase"
 import { settingsDb } from "@/lib/database"
 import { useSubtitleSettings } from "@/app/contexts/subtitle-settings-context"
 import { useTheme } from "@/app/contexts/theme-context"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface SettingsModalProps {
   open: boolean
@@ -25,6 +26,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
+  const isMobile = useIsMobile()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -58,10 +60,11 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
 
   const loadUserAndSettings = async () => {
     try {
-      const user = await auth.getUser()
-      console.log("Auth user:", user)
+      const userResponse = await auth.getUser()
+      console.log("Auth user:", userResponse)
       
-      if (user) {
+      if (userResponse?.data?.user) {
+        const user = userResponse.data.user
         setUser(user)
         setEmail(user.email || "")
         setDisplayName(user.user_metadata?.display_name || user.email?.split('@')[0] || "")
@@ -223,7 +226,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${isMobile ? 'max-w-full h-full max-h-full rounded-none' : 'max-w-4xl max-h-[90vh]'} overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle>설정</DialogTitle>
         </DialogHeader>
@@ -235,26 +238,26 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
         ) : (
           <div className="space-y-6">
             <Tabs defaultValue="profile" className="space-y-6">
-              <TabsList className="grid grid-cols-5 w-full">
-                <TabsTrigger value="profile" className="flex items-center gap-2">
+              <TabsList className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-5'} w-full h-auto p-1 ${isMobile ? 'gap-y-2' : ''}`}>
+                <TabsTrigger value="profile" className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm`}>
                   <User className="w-4 h-4" />
-                  프로필
+                  <span>프로필</span>
                 </TabsTrigger>
-                <TabsTrigger value="recording" className="flex items-center gap-2">
+                <TabsTrigger value="recording" className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm`}>
                   <Mic className="w-4 h-4" />
-                  녹음
+                  <span>녹음</span>
                 </TabsTrigger>
-                <TabsTrigger value="subtitles" className="flex items-center gap-2">
+                <TabsTrigger value="subtitles" className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm`}>
                   <Subtitles className="w-4 h-4" />
-                  자막
+                  <span>자막</span>
                 </TabsTrigger>
-                <TabsTrigger value="theme" className="flex items-center gap-2">
+                <TabsTrigger value="theme" className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm`}>
                   <Palette className="w-4 h-4" />
-                  테마
+                  <span>테마</span>
                 </TabsTrigger>
-                <TabsTrigger value="data" className="flex items-center gap-2">
+                <TabsTrigger value="data" className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center gap-1 py-2 px-1 md:px-3 text-xs md:text-sm`}>
                   <Database className="w-4 h-4" />
-                  데이터
+                  <span>데이터</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -267,16 +270,16 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="flex items-center space-x-4">
-                      <Avatar className="w-20 h-20">
+                    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center ${isMobile ? 'space-y-4' : 'space-x-4'}`}>
+                      <Avatar className={`${isMobile ? 'w-24 h-24' : 'w-20 h-20'}`}>
                         <AvatarImage src={profileImage} />
                         <AvatarFallback>
                           {displayName?.charAt(0)?.toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
+                      <div className={isMobile ? 'text-center' : ''}>
                         <Label htmlFor="profile-image" className="cursor-pointer">
-                          <Button variant="outline" size="sm" asChild>
+                          <Button variant="outline" size={isMobile ? "default" : "sm"} asChild>
                             <span>
                               <Camera className="w-4 h-4 mr-2" />
                               프로필 사진 변경
@@ -385,7 +388,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
               <TabsContent value="subtitles" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'items-center justify-between'}`}>
                       <div>
                         <CardTitle>자막 설정</CardTitle>
                         <CardDescription>
@@ -394,9 +397,9 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                       </div>
                       <Button
                         variant="outline"
-                        size="sm"
+                        size={isMobile ? "default" : "sm"}
                         onClick={handleResetSubtitleSettings}
-                        className="flex items-center gap-2"
+                        className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}
                       >
                         <RotateCcw className="w-4 h-4" />
                         기본값으로 되돌리기
@@ -554,21 +557,23 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                   <CardContent className="space-y-6">
                     <div className="space-y-4">
                       <Label>테마 모드</Label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-3`}>
                         {/* 라이트 모드 */}
                         <div
-                          className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          className={`relative flex ${isMobile ? 'flex-row' : 'flex-col'} items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
                             theme === 'light' 
                               ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' 
                               : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
                           }`}
                           onClick={() => setTheme('light')}
                         >
-                          <Sun className="w-8 h-8 mb-2 text-yellow-500" />
-                          <span className="text-sm font-medium">라이트</span>
-                          <span className="text-xs text-gray-500 text-center mt-1">
-                            밝은 테마
-                          </span>
+                          <Sun className={`${isMobile ? 'w-6 h-6 mr-3' : 'w-8 h-8 mb-2'} text-yellow-500`} />
+                          <div className={isMobile ? 'flex-1' : 'text-center'}>
+                            <span className="text-sm font-medium">라이트</span>
+                            <span className={`text-xs text-gray-500 ${isMobile ? 'ml-2' : 'block mt-1'}`}>
+                              밝은 테마
+                            </span>
+                          </div>
                           {theme === 'light' && (
                             <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></div>
                           )}
@@ -576,18 +581,20 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
 
                         {/* 다크 모드 */}
                         <div
-                          className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          className={`relative flex ${isMobile ? 'flex-row' : 'flex-col'} items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
                             theme === 'dark' 
                               ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' 
                               : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
                           }`}
                           onClick={() => setTheme('dark')}
                         >
-                          <Moon className="w-8 h-8 mb-2 text-blue-500" />
-                          <span className="text-sm font-medium">다크</span>
-                          <span className="text-xs text-gray-500 text-center mt-1">
-                            어두운 테마
-                          </span>
+                          <Moon className={`${isMobile ? 'w-6 h-6 mr-3' : 'w-8 h-8 mb-2'} text-blue-500`} />
+                          <div className={isMobile ? 'flex-1' : 'text-center'}>
+                            <span className="text-sm font-medium">다크</span>
+                            <span className={`text-xs text-gray-500 ${isMobile ? 'ml-2' : 'block mt-1'}`}>
+                              어두운 테마
+                            </span>
+                          </div>
                           {theme === 'dark' && (
                             <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></div>
                           )}
@@ -595,18 +602,20 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
 
                         {/* 시스템 모드 */}
                         <div
-                          className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          className={`relative flex ${isMobile ? 'flex-row' : 'flex-col'} items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
                             theme === 'system' 
                               ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' 
                               : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
                           }`}
                           onClick={() => setTheme('system')}
                         >
-                          <Monitor className="w-8 h-8 mb-2 text-gray-500" />
-                          <span className="text-sm font-medium">시스템</span>
-                          <span className="text-xs text-gray-500 text-center mt-1">
-                            시스템 설정 적용
-                          </span>
+                          <Monitor className={`${isMobile ? 'w-6 h-6 mr-3' : 'w-8 h-8 mb-2'} text-gray-500`} />
+                          <div className={isMobile ? 'flex-1' : 'text-center'}>
+                            <span className="text-sm font-medium">시스템</span>
+                            <span className={`text-xs text-gray-500 ${isMobile ? 'ml-2' : 'block mt-1'}`}>
+                              시스템 설정 적용
+                            </span>
+                          </div>
                           {theme === 'system' && (
                             <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></div>
                           )}
@@ -712,8 +721,12 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
               </TabsContent>
             </Tabs>
 
-            <div className="flex justify-end pt-4 border-t">
-              <Button onClick={handleSaveSettings} disabled={saving}>
+            <div className={`flex justify-end pt-4 border-t ${isMobile ? 'px-4 pb-4' : ''}`}>
+              <Button 
+                onClick={handleSaveSettings} 
+                disabled={saving}
+                className={isMobile ? 'w-full' : ''}
+              >
                 {saving ? "저장 중..." : "설정 저장"}
               </Button>
             </div>
