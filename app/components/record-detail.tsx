@@ -78,11 +78,32 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const [activeTab, setActiveTab] = useState<'whisper' | 'ai'>('whisper')
   const audioRef = useRef<HTMLAudioElement>(null)
   const animationRef = useRef<number | null>(null)
+  const hasLoadedProgress = useRef(false)
 
   // 슬라이드 기록 불러오기
   useEffect(() => {
     loadRecordEntries()
   }, [recording.id])
+
+  // 페이지를 벗어날 때 진행 상황 저장
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (audioRef.current && currentTime > 0) {
+        saveProgress(currentTime)
+      }
+    }
+
+    // 페이지 언로드 시 저장
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    // 컴포넌트 언마운트 시 저장
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      if (audioRef.current && currentTime > 0) {
+        saveProgress(currentTime)
+      }
+    }
+  }, [currentTime, recording.id])
 
   // 자막을 슬라이드별로 분할
   useEffect(() => {
@@ -478,6 +499,15 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       if (isFinite(audioDuration) && audioDuration > 0 && duration === 0) {
         setDuration(audioDuration)
       }
+      
+      // 오디오가 재생 가능해지면 저장된 진행 상황 불러오기
+      if (!hasLoadedProgress.current) {
+        hasLoadedProgress.current = true
+        const savedTime = loadProgress()
+        if (savedTime > 0) {
+          toast.success(`마지막 학습 지점(${formatTimeFromSeconds(savedTime)})으로 이동했습니다.`)
+        }
+      }
     }
   }
 
@@ -508,6 +538,33 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   // 재생 종료 시
   const handleEnded = () => {
     setIsPlaying(false)
+    // 재생이 완료되면 진행 상황 초기화
+    if (recording.id) {
+      localStorage.removeItem(`recording_progress_${recording.id}`)
+    }
+  }
+
+  // 학습 진행 상황 저장
+  const saveProgress = (time: number) => {
+    if (recording.id && isFinite(time) && time > 0) {
+      localStorage.setItem(`recording_progress_${recording.id}`, time.toString())
+    }
+  }
+
+  // 학습 진행 상황 불러오기
+  const loadProgress = () => {
+    if (recording.id) {
+      const savedTime = localStorage.getItem(`recording_progress_${recording.id}`)
+      if (savedTime && audioRef.current) {
+        const time = parseFloat(savedTime)
+        if (isFinite(time) && time > 0 && time < duration) {
+          audioRef.current.currentTime = time
+          setCurrentTime(time)
+          return time
+        }
+      }
+    }
+    return 0
   }
 
   const seekToTime = (timeString: string) => {
@@ -1572,6 +1629,12 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             onTimeUpdate={(e) => {
               // 재생 진행 상황 업데이트
               updateProgress()
+              
+              // 진행 상황 저장 (1초마다)
+              const currentAudioTime = e.currentTarget.currentTime
+              if (Math.floor(currentAudioTime) !== Math.floor(currentTime)) {
+                saveProgress(currentAudioTime)
+              }
               
               // duration이 아직 설정되지 않았다면 여기서도 시도
               if (duration === 0 && audioRef.current) {
