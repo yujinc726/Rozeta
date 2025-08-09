@@ -23,6 +23,7 @@ import SettingsModal from "@/app/components/settings-modal"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/supabase"
 import { profiles } from "@/lib/database"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Tooltip,
   TooltipContent,
@@ -67,6 +68,7 @@ export default function SharedSidebar({
   onToggleCollapse
 }: SharedSidebarProps) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [newSubjectName, setNewSubjectName] = useState("")
   const [isAddingSubject, setIsAddingSubject] = useState(false)
   const [editingSubject, setEditingSubject] = useState<{ id: string; name: string } | null>(null)
@@ -164,8 +166,8 @@ export default function SharedSidebar({
                       className={cn(
                         "w-12 h-12 p-0 justify-center",
                         currentView === 'home' 
-                          ? "bg-purple-50 text-purple-700 hover:bg-purple-100" 
-                          : "hover:bg-gray-100"
+                          ? "bg-purple-50 text-purple-700" + (!isMobile ? " hover:bg-purple-100" : "")
+                          : !isMobile && "hover:bg-gray-100"
                       )}
                     >
                       <Home className="w-4 h-4" />
@@ -182,8 +184,8 @@ export default function SharedSidebar({
                   className={cn(
                     "w-full justify-start",
                     currentView === 'home' 
-                      ? "bg-purple-50 text-purple-700 hover:bg-purple-100" 
-                      : "hover:bg-gray-100"
+                      ? "bg-purple-50 text-purple-700" + (!isMobile ? " hover:bg-purple-100" : "")
+                      : !isMobile && "hover:bg-gray-100"
                   )}
                 >
                   <Home className="w-4 h-4" />
@@ -210,23 +212,35 @@ export default function SharedSidebar({
 
           <div className="space-y-2">
             {!isCollapsed && isAddingSubject && (
-              <div className="flex gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className={`p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3 ${isMobile ? 'mx-2' : ''}`}>
                 <Input
                   value={newSubjectName}
                   onChange={(e) => setNewSubjectName(e.target.value)}
                   placeholder="과목명 입력"
-                  className="h-8"
+                  className={`${isMobile ? 'h-10' : 'h-8'} mobile-tap-feedback`}
                   onKeyPress={(e) => e.key === 'Enter' && handleAddSubject()}
+                  autoFocus
                 />
-                <Button size="sm" onClick={handleAddSubject}>
-                  추가
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => {
-                  setIsAddingSubject(false)
-                  setNewSubjectName("")
-                }}>
-                  취소
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    size={isMobile ? "default" : "sm"} 
+                    onClick={handleAddSubject}
+                    className={`${isMobile ? 'flex-1 h-10' : ''} mobile-tap-feedback`}
+                  >
+                    추가
+                  </Button>
+                  <Button 
+                    size={isMobile ? "default" : "sm"} 
+                    variant="ghost" 
+                    onClick={() => {
+                      setIsAddingSubject(false)
+                      setNewSubjectName("")
+                    }}
+                    className={`${isMobile ? 'flex-1 h-10' : ''} mobile-tap-feedback`}
+                  >
+                    취소
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -237,7 +251,7 @@ export default function SharedSidebar({
                   "group relative rounded-lg transition-all mb-2",
                   selectedSubject?.id === subject.id
                     ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800',
+                    : !isMobile && 'hover:bg-gray-50 dark:hover:bg-gray-800',
                   isCollapsed ? "flex justify-center" : "w-full"
                 )}
               >
@@ -345,7 +359,10 @@ export default function SharedSidebar({
                         onToggleCollapse?.()
                         setTimeout(() => setIsAddingSubject(true), 300)
                       }}
-                      className="w-12 h-12 p-0 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center justify-center"
+                      className={cn(
+                        "w-12 h-12 p-0 rounded-lg flex items-center justify-center",
+                        !isMobile && "hover:bg-gray-50 dark:hover:bg-gray-800"
+                      )}
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -448,7 +465,7 @@ export default function SharedSidebar({
 
       {/* Edit Subject Dialog */}
       <Dialog open={!!editingSubject} onOpenChange={() => setEditingSubject(null)}>
-        <DialogContent>
+        <DialogContent className={isMobile ? 'max-w-sm mx-4 rounded-xl' : ''}>
           <DialogHeader>
             <DialogTitle>과목명 변경</DialogTitle>
           </DialogHeader>
@@ -459,14 +476,23 @@ export default function SharedSidebar({
                 prev ? { ...prev, name: e.target.value } : null
               )}
               placeholder="새 과목명을 입력하세요"
+              className={`${isMobile ? 'h-10' : ''} mobile-tap-feedback`}
               onKeyPress={(e) => e.key === 'Enter' && handleEditSubject()}
+              autoFocus
             />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingSubject(null)}>
+          <DialogFooter className={isMobile ? 'flex-col gap-2' : ''}>
+            <Button 
+              variant="outline" 
+              onClick={() => setEditingSubject(null)}
+              className={`${isMobile ? 'w-full h-10' : ''} mobile-tap-feedback`}
+            >
               취소
             </Button>
-            <Button onClick={handleEditSubject}>
+            <Button 
+              onClick={handleEditSubject}
+              className={`${isMobile ? 'w-full h-10' : ''} mobile-tap-feedback`}
+            >
               변경
             </Button>
           </DialogFooter>
@@ -475,7 +501,7 @@ export default function SharedSidebar({
 
       {/* Delete Subject Dialog */}
       <Dialog open={!!showDeleteDialog} onOpenChange={() => setShowDeleteDialog(null)}>
-        <DialogContent>
+        <DialogContent className={isMobile ? 'max-w-sm mx-4 rounded-xl' : ''}>
           <DialogHeader>
             <DialogTitle>과목 삭제</DialogTitle>
           </DialogHeader>

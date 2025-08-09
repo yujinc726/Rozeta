@@ -264,12 +264,12 @@ function ProtectedLayoutContent({
             
             <button
               onClick={() => router.push('/')}
-              className="flex items-center gap-2 mobile-tap-feedback"
+              className="flex items-center gap-3 mobile-tap-feedback"
             >
-              <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-3 h-3 text-white" />
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-lg gradient-text">Rozeta</span>
+              <span className="font-bold text-xl gradient-text">Rozeta</span>
             </button>
             
             {/* 빈 공간 유지용 */}
