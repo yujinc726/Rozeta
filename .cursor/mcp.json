@@ -8,7 +8,7 @@
           "-y",
           "@supabase/mcp-server-supabase@latest",
           "--read-only",
-          "--project-ref=<project-ref>"
+          "--project-ref=prj_B4Uko8KCVGlM31b1aG7thucHBAVH"
         ],
         "env": {
           "SUPABASE_ACCESS_TOKEN": "sbp_1c1dc7d5fab0f909c459d17a1ddf8ba732fe5276"
