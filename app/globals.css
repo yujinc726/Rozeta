@@ -72,6 +72,8 @@
     overscroll-behavior-y: none;
     /* 부드러운 스크롤 */
     -webkit-overflow-scrolling: touch;
+    /* Safe Area 배경색 설정 */
+    background-color: #ffffff;
   }
   
   body {

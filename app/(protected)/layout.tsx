@@ -181,7 +181,7 @@ function ProtectedLayoutContent({
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
       {/* 데스크톱 사이드바 */}
       {!isMobile && (
         <SharedSidebar
