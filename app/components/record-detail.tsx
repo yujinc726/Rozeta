@@ -1595,10 +1595,10 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
             className="hidden"
           />
           
-          <div className="w-full px-3 md:px-6 py-2 md:py-3">
-            <div className="flex items-center gap-3 md:gap-6">
+          <div className={`w-full ${isMobile ? 'px-2 py-2' : 'px-6 py-3'}`}>
+            <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-6'}`}>
               {/* 현재 재생 정보 */}
-              <div className={`flex items-center gap-2 md:gap-3 min-w-0 ${isMobile ? 'w-24' : 'w-72'}`}>
+              <div className={`flex items-center gap-2 md:gap-3 min-w-0 ${isMobile ? 'hidden' : 'w-72'}`}>
                 <div className="shrink-0">
                   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
                     <defs>
@@ -1635,7 +1635,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                   onClick={togglePlayPause}
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 shrink-0"
+                  className={`${isMobile ? 'h-7 w-7' : 'h-8 w-8'} shrink-0`}
                 >
                   {isPlaying ? (
                     <Pause className="w-4 h-4" />
@@ -1649,7 +1649,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
                 </span>
                 
                 <div 
-                  className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
+                  className={`flex-1 ${isMobile ? 'h-3' : 'h-2'} bg-gray-200 rounded-full overflow-hidden cursor-pointer`}
                   onClick={(e) => {
                     if (audioRef.current && duration > 0 && isFinite(duration)) {
                       const rect = e.currentTarget.getBoundingClientRect()
@@ -1694,25 +1694,28 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
               </div>
 
               {/* 추가 컨트롤 */}
-              <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
+              <div className={`flex items-center ${isMobile ? 'gap-0' : 'gap-2'}`}>
                 {recording.subtitles && (
                   <Button
                     onClick={() => setShowLiveSubtitle(!showLiveSubtitle)}
                     size="sm"
                     variant="ghost"
                     className={`group gap-1 text-xs hover:bg-transparent ${showLiveSubtitle ? '' : 'text-gray-500 dark:text-gray-400'}`}
+                    title="실시간 자막"
                   >
                     <FileText className={`w-3 h-3 transition-colors ${
                       showLiveSubtitle 
                         ? 'text-purple-500 group-hover:text-purple-600' 
                         : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
                     }`} />
-                    <span className={showLiveSubtitle 
-                      ? 'font-medium bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all' 
-                      : 'transition-colors group-hover:text-gray-700 dark:group-hover:text-gray-300'
-                    }>
-                      실시간 자막
-                    </span>
+                    {!isMobile && (
+                      <span className={showLiveSubtitle 
+                        ? 'font-medium bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all' 
+                        : 'transition-colors group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                      }>
+                        실시간 자막
+                      </span>
+                    )}
                   </Button>
                 )}
                 <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
