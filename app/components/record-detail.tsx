@@ -731,7 +731,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
   const pdfUrls = recording.pdf_url ? recording.pdf_url.split(',') : []
 
   return (
-    <div className="flex-1 bg-gray-50 dark:bg-gray-900">
+    <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="relative bg-gradient-to-r from-slate-50/50 to-white dark:from-gray-800/50 dark:to-gray-900 border-b border-slate-200/60 dark:border-gray-700/60 shadow-sm">
         <div className="px-4 md:px-6 py-4 md:py-5">
@@ -805,7 +805,7 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
       </div>
 
       {/* AI 처리 상태 카드 */}
-      <div className="p-4 md:p-6 pb-24">
+      <div className="p-4 md:p-6 pb-40 md:pb-28" style={{ paddingBottom: isMobile ? 'calc(10rem + env(safe-area-inset-bottom))' : '7rem' }}>
         {/* 모바일 탭 인터페이스 */}
         {isMobile ? (
           <div className="mb-4">
@@ -1689,7 +1689,8 @@ export default function RecordDetail({ recording, onOpenWhisper, onOpenAIExplana
           style={{
             left: isMobile ? 0 : (isSidebarCollapsed ? '4rem' : '20rem'),
             right: 0,
-            width: isMobile ? '100vw' : (isSidebarCollapsed ? 'calc(100vw - 4rem)' : 'calc(100vw - 20rem)')
+            width: isMobile ? '100vw' : (isSidebarCollapsed ? 'calc(100vw - 4rem)' : 'calc(100vw - 20rem)'),
+            paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : '0'
           }}
           onTouchStart={(e) => {
             // 오디오 컨테이너에서 터치 시작 시 스크롤 방지 준비

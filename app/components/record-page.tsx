@@ -195,7 +195,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
         <div className="relative bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-200/60 shadow-sm">
         <div className={cn("px-4 md:px-6", isMobile ? "py-3" : "py-5")}>
@@ -263,7 +263,7 @@ export default function RecordPage({ subjectName, subjectId }: RecordPageProps) 
         </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1">
         {isMobile ? (
           <MobileLayout
           recording={recording}
@@ -321,7 +321,7 @@ function MobileLayout({ recording, currentSlideThumbnail, handleFileChange, star
     return module.getPdfPageCount(file)
   }
   return (
-    <div className="flex h-full flex-col relative">
+    <div className="flex flex-col relative pb-[160px] min-h-screen">
       {/* PDF Selection */}
       <div className="p-3 bg-white border-b flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -394,8 +394,8 @@ function MobileLayout({ recording, currentSlideThumbnail, handleFileChange, star
             </div>
           </div>
           
-      {/* Main Content Area - Scrollable */}
-      <div className="flex-1 overflow-y-auto pb-[140px]">
+      {/* Main Content Area - Now scrollable */}
+      <div className="flex-1">
         {/* Slide Display */}
         <div 
           className="bg-white relative h-[50vh] touch-pan-y"
@@ -640,8 +640,8 @@ function MobileLayout({ recording, currentSlideThumbnail, handleFileChange, star
 function DesktopLayout({ recording, uploadingPdfIndex, currentSlideThumbnail, handleFileChange, startTransition, goToPrevSlide, goToNextSlide, formatTime, startRecording, stopRecording, isSaving, isSidebarCollapsed }: any) {
   return (
     <>
-        <div className="flex-1 p-6 pb-48">
-          <div className="h-full flex flex-col">
+        <div className="flex-1 p-6 pb-48 min-h-screen">
+          <div className="flex flex-col">
           {/* PDF Upload Section */}
             <div className="mb-3 bg-white rounded-lg shadow-sm border p-3">
               <div className="flex items-center gap-2 flex-wrap">
@@ -737,7 +737,7 @@ function DesktopLayout({ recording, uploadingPdfIndex, currentSlideThumbnail, ha
             </div>
 
           {/* Slide Display */}
-            <div className="flex-1 bg-white rounded-lg shadow-md relative overflow-hidden">
+            <div className="flex-1 bg-white rounded-lg shadow-md relative min-h-[60vh]">
               {/* Slide Navigation */}
             {recording.selectedPdfIndex >= 0 && (
                 <div className="absolute top-4 right-4 flex gap-2 z-10">
@@ -793,7 +793,7 @@ function DesktopLayout({ recording, uploadingPdfIndex, currentSlideThumbnail, ha
 
             {/* Records Table */}
           {recording.slideSyncs.length > 0 && (
-              <div className="mt-4 bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="mt-4 bg-white rounded-lg shadow-md">
                 <div className="p-4 border-b">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Clock className="w-5 h-5 text-purple-600" />
